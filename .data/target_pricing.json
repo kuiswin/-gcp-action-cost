@@ -2,10 +2,27 @@
   "project_id": "qiita-app-170",
   "active_services_count": 32,
   "target_unit_prices": {
-    "cloud_run": {},
-    "cloud_storage": {},
-    "gemini_api": {},
-    "bigquery": {},
-    "pubsub": {}
+    "cloud_run": {
+      "cpu_per_vcpu_sec_jpy": 0.00372,
+      "memory_per_gb_sec_jpy": 0.00038750000000000004,
+      "request_per_count_jpy": 6.2e-05
+    },
+    "cloud_storage": {
+      "class_a_write_per_op_jpy": 0.0007750000000000001,
+      "class_b_read_per_op_jpy": 6.2e-05,
+      "storage_per_gb_month_jpy": 3.1
+    },
+    "gemini_api": {
+      "image_generation_per_image_jpy": 6.0,
+      "input_text_per_1k_tokens_jpy": 0.023249999999999996,
+      "output_text_per_1k_tokens_jpy": 0.09299999999999999
+    },
+    "bigquery": {
+      "query_per_tb_scanned_jpy": 968.75,
+      "storage_per_gb_month_jpy": 3.1
+    },
+    "pubsub": {
+      "message_ingestion_per_gb_jpy": 6.2
+    }
   }
 }

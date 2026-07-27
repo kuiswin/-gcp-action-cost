@@ -30,9 +30,10 @@ def main():
     with open(CATALOG_FILE, "r", encoding="utf-8") as f:
         catalog = json.load(f)
 
+    master_prices = catalog.get("master_prices", catalog.get("master_pricing", {}))
+
     active_list = services_data.get("active_services", [])
     active_api_names = [s["api_name"] for s in active_list]
-    active_titles = [s["service_name"] for s in active_list]
     project_id = services_data.get("project_id", "qiita-app-170")
 
     target_pricing = {
@@ -45,23 +46,28 @@ def main():
     print(f"・検出有効サービス数: {len(active_list)} 件")
 
     if "run.googleapis.com" in active_api_names:
-        target_pricing["target_unit_prices"]["cloud_run"] = catalog.get("cloud_run", {})
+        prices = master_prices.get("cloud_run", master_prices.get("Cloud Run", {}))
+        target_pricing["target_unit_prices"]["cloud_run"] = prices
         print(f"  ・[✓ マッチ] Cloud Run 適用単価を設定")
 
     if "storage.googleapis.com" in active_api_names or "storage-component.googleapis.com" in active_api_names:
-        target_pricing["target_unit_prices"]["cloud_storage"] = catalog.get("cloud_storage", {})
+        prices = master_prices.get("cloud_storage", master_prices.get("Cloud Storage", {}))
+        target_pricing["target_unit_prices"]["cloud_storage"] = prices
         print(f"  ・[✓ マッチ] Cloud Storage 適用単価を設定")
 
     if "generativelanguage.googleapis.com" in active_api_names or "aiplatform.googleapis.com" in active_api_names:
-        target_pricing["target_unit_prices"]["gemini_api"] = catalog.get("gemini_api", {})
+        prices = master_prices.get("gemini_api", master_prices.get("Gemini API / Vertex AI", {}))
+        target_pricing["target_unit_prices"]["gemini_api"] = prices
         print(f"  ・[✓ マッチ] Gemini API 適用単価を設定")
 
     if "bigquery.googleapis.com" in active_api_names:
-        target_pricing["target_unit_prices"]["bigquery"] = catalog.get("bigquery", {})
+        prices = master_prices.get("bigquery", master_prices.get("BigQuery", {}))
+        target_pricing["target_unit_prices"]["bigquery"] = prices
         print(f"  ・[✓ マッチ] BigQuery 適用単価を設定")
 
     if "pubsub.googleapis.com" in active_api_names:
-        target_pricing["target_unit_prices"]["pubsub"] = catalog.get("pubsub", {})
+        prices = master_prices.get("pubsub", master_prices.get("Cloud Pub/Sub", {}))
+        target_pricing["target_unit_prices"]["pubsub"] = prices
         print(f"  ・[✓ マッチ] Cloud Pub/Sub 適用単価を設定")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
