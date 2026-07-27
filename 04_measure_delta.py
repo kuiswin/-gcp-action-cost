@@ -41,11 +41,16 @@ def fetch_json(url, token):
     with urllib.request.urlopen(req, timeout=20) as resp:
         return json.loads(resp.read().decode())
 
-def query_metric(project_id, token, metric_type, resource_type, days=30):
-    """指定 metric_type / resource_type で過去 days 日間の合計値を返す。取得失敗は 0.0。"""
-    now        = datetime.now(timezone.utc)
-    start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
-    end_time   = now.strftime("%Y-%m-%dT23:59:59Z")
+def query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None):
+    """指定 metric_type / resource_type でメトリクスを取得する。
+    since_time が指定された場合はその時刻以降、そうでなければ過去 days 日間。
+    戻り値: (total, data_since, data_until) 取得失敗は (0.0, None, None)。"""
+    now      = datetime.now(timezone.utc)
+    end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if since_time:
+        start_time = since_time
+    else:
+        start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
     filter_expr = (
         f'metric.type="{metric_type}"'
         + (f' AND resource.type="{resource_type}"' if resource_type else "")
@@ -57,15 +62,26 @@ def query_metric(project_id, token, metric_type, resource_type, days=30):
     })
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
     try:
-        data  = fetch_json(url, token)
-        total = 0.0
+        data   = fetch_json(url, token)
+        total  = 0.0
+        since  = None   # 最初のデータ点
+        until  = None   # 最後のデータ点
         for ts in data.get("timeSeries", []):
             for p in ts.get("points", []):
                 v = p.get("value", {})
-                total += int(v["int64Value"]) if "int64Value" in v else float(v.get("doubleValue", 0))
-        return total
+                val = int(v["int64Value"]) if "int64Value" in v else float(v.get("doubleValue", 0))
+                if val == 0:
+                    continue          # ゼロポイントは期間計算から除外
+                total += val
+                t_start = p.get("interval", {}).get("startTime")
+                t_end   = p.get("interval", {}).get("endTime")
+                if t_start and (since is None or t_start < since):
+                    since = t_start
+                if t_end   and (until is None or t_end   > until):
+                    until = t_end
+        return total, since, until
     except Exception:
-        return 0.0
+        return 0.0, None, None
 
 
 # -----------------------------------------------------------------------
@@ -105,11 +121,15 @@ GCS_WRITE_METHODS = {"WriteObject", "PutObject", "PatchObject", "DeleteObject",
                      "CreateBucket", "DeleteBucket", "SetBucketIamPolicy"}
 
 
-def query_gcs_ops(project_id, token, days=30):
-    """GCS read / write オペレーション数を個別に取得して返す。"""
-    now        = datetime.now(timezone.utc)
-    start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
-    end_time   = now.strftime("%Y-%m-%dT23:59:59Z")
+def query_gcs_ops(project_id, token, days=30, since_time=None):
+    """GCS read / write オペレーション数を個別に取得して返す。
+    戻り値: (read_total, write_total, since, until)"""
+    now      = datetime.now(timezone.utc)
+    end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if since_time:
+        start_time = since_time
+    else:
+        start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
     params = urllib.parse.urlencode({
         "filter":             'metric.type="storage.googleapis.com/api/request_count" AND resource.type="gcs_bucket"',
         "interval.startTime": start_time,
@@ -118,24 +138,30 @@ def query_gcs_ops(project_id, token, days=30):
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
 
     read_total = write_total = 0.0
+    since = until = None
     try:
         data = fetch_json(url, token)
         for ts in data.get("timeSeries", []):
             method = ts.get("metric", {}).get("labels", {}).get("method", "")
-            subtotal = sum(
-                int(p["value"].get("int64Value", 0)) + float(p["value"].get("doubleValue", 0))
-                for p in ts.get("points", [])
-            )
-            if method in GCS_READ_METHODS:
-                read_total  += subtotal
-            elif method in GCS_WRITE_METHODS:
-                write_total += subtotal
-            else:
-                # 不明 method はどちらでもなければ read 扱い（保守的）
-                read_total  += subtotal
+            for p in ts.get("points", []):
+                val = int(p["value"].get("int64Value", 0)) + float(p["value"].get("doubleValue", 0))
+                if val == 0:
+                    continue
+                if method in GCS_READ_METHODS:
+                    read_total  += val
+                elif method in GCS_WRITE_METHODS:
+                    write_total += val
+                else:
+                    read_total  += val
+                t_start = p.get("interval", {}).get("startTime")
+                t_end   = p.get("interval", {}).get("endTime")
+                if t_start and (since is None or t_start < since):
+                    since = t_start
+                if t_end   and (until is None or t_end   > until):
+                    until = t_end
     except Exception:
         pass
-    return read_total, write_total
+    return read_total, write_total, since, until
 
 
 def scale_matrix(value_30, windows):
@@ -154,8 +180,16 @@ def scale_matrix(value_30, windows):
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
 
+    # --snap 差分モード: COST_SNAP_SINCE が設定されていれば、その時刻以降を取得
+    snap_since = os.environ.get("COST_SNAP_SINCE", "").strip()
+    snap_mode  = bool(snap_since)
+
     print("================================================================================")
-    print("【Step 4】 時間軸マトリックス別リソース消費量プロファイリング (API照会 ➔ ローカル高速算出)")
+    if snap_mode:
+        print("【Step 4】 スナップショット差分モード: 前回計測以降のリソース消費を取得")
+        print(f"           計測開始点: {snap_since}")
+    else:
+        print("【Step 4】 時間軸マトリックス別リソース消費量プロファイリング (API照会 ➔ ローカル高速算出)")
     print("================================================================================")
 
     if not os.path.exists(TARGET_PRICING_FILE):
@@ -168,7 +202,11 @@ def main():
     token      = get_access_token()
     project_id = get_project_id()
     print(f"・対象プロジェクトID: {project_id}")
-    print("・Monitoring API から 過去30日間のメトリクスを取得中...")
+
+    if snap_mode:
+        print(f"・Monitoring API から {snap_since[:16]} 以降のメトリクスを取得中...")
+    else:
+        print("・Monitoring API から 過去30日間のメトリクスを取得中...")
 
     # target_pricing の free_tier_metrics から計測すべき metric_key を収集
     metric_keys = set()
@@ -176,14 +214,21 @@ def main():
         for mk in svc_entry.get("free_tier_metrics", {}).keys():
             metric_keys.add(mk)
 
-    # 30日間合計値を取得
+
+    # 30日間合計値を取得 (差分モード時はsnap_since以降だけ取得)
     raw_30 = {}
+    all_since = []   # 各メトリクスの最初のデータ点を収集
+    all_until = []   # 各メトリクスの最後のデータ点を収集
+
+    fetch_kwargs = {"since_time": snap_since} if snap_mode else {"days": 30}
 
     # GCS は read/write をまとめて1回のAPIで取得
     if "gcs_read_ops" in metric_keys or "gcs_write_ops" in metric_keys:
-        gcs_r, gcs_w = query_gcs_ops(project_id, token, days=30)
+        gcs_r, gcs_w, gcs_since, gcs_until = query_gcs_ops(project_id, token, **fetch_kwargs)
         raw_30["gcs_read_ops"]  = gcs_r
         raw_30["gcs_write_ops"] = gcs_w
+        if gcs_since: all_since.append(gcs_since)
+        if gcs_until: all_until.append(gcs_until)
         print(f"  ・GCS Read  : {gcs_r:,.0f} ops  |  Write: {gcs_w:,.0f} ops")
 
     # その他メトリクス
@@ -195,10 +240,13 @@ def main():
             raw_30[mkey] = 0.0
             continue
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        val = query_metric(project_id, token, metric_type, resource_type, days=30)
+        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, **fetch_kwargs)
         raw_30[mkey] = val
+        if m_since: all_since.append(m_since)
+        if m_until: all_until.append(m_until)
         used_str = f"{val:,.4f}" if val else "0 (未使用)"
         print(f"  ・{mkey}: {used_str}")
+
 
     # 時間窓の定義 (分数)
     WINDOWS = {
@@ -227,10 +275,31 @@ def main():
                 entry[mkey] = round(scaled, 2)
         time_matrix[label] = entry
 
+    # 実測期間を算出
+    data_since = min(all_since) if all_since else None
+    data_until = max(all_until) if all_until else None
+    if data_since and data_until:
+        from datetime import datetime as dt
+        fmt = "%Y-%m-%dT%H:%M:%S"
+        try:
+            t0 = dt.strptime(data_since[:19], fmt)
+            t1 = dt.strptime(data_until[:19], fmt)
+            actual_days = round((t1 - t0).total_seconds() / 86400, 1)
+        except Exception:
+            actual_days = None
+    else:
+        actual_days = None
+
+    if data_since and actual_days is not None:
+        print(f"  ・実測期間: {data_since[:10]} 〜 {data_until[:10]} ({actual_days} 日間)")
+
     usage_delta = {
-        "project_id":  project_id,
-        "measured_at": datetime.now(timezone.utc).isoformat(),
-        "time_matrix": time_matrix,
+        "project_id":           project_id,
+        "measured_at":          datetime.now(timezone.utc).isoformat(),
+        "data_since":           data_since,
+        "data_until":           data_until,
+        "actual_days_measured": actual_days,
+        "time_matrix":          time_matrix,
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
