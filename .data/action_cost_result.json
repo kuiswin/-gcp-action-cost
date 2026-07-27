@@ -6,51 +6,46 @@
     "gcs_read_price": 6.2e-05,
     "gcs_write_price": 0.0007750000000000001
   },
+  "always_free_allowance": {
+    "cloud_run_requests": "2,000,000 req/month",
+    "cloud_run_cpu": "180,000 vCPU-sec/month",
+    "cloud_storage_capacity": "5 GB/month"
+  },
   "cost_matrix": {
     "1_minute": {
       "request_count": 0,
       "cpu_seconds": 0.0,
-      "cost_cpu_jpy": 0.0,
-      "cost_req_jpy": 0.0,
-      "cost_gcs_jpy": 0.0,
-      "total_list_cost_jpy": 0.0,
-      "actual_billed_jpy": 0.0
+      "gross_cost_jpy": 0.0,
+      "free_tier_discount_jpy": -0.0,
+      "net_cost_jpy": 0.0
     },
     "10_minutes": {
       "request_count": 0,
       "cpu_seconds": 0.0,
-      "cost_cpu_jpy": 0.0,
-      "cost_req_jpy": 0.0,
-      "cost_gcs_jpy": 0.0,
-      "total_list_cost_jpy": 0.0,
-      "actual_billed_jpy": 0.0
+      "gross_cost_jpy": 0.0,
+      "free_tier_discount_jpy": -0.0,
+      "net_cost_jpy": 0.0
     },
     "1_hour": {
       "request_count": 0,
       "cpu_seconds": 0.0,
-      "cost_cpu_jpy": 0.0,
-      "cost_req_jpy": 0.0,
-      "cost_gcs_jpy": 0.0,
-      "total_list_cost_jpy": 0.0,
-      "actual_billed_jpy": 0.0
+      "gross_cost_jpy": 0.0,
+      "free_tier_discount_jpy": -0.0,
+      "net_cost_jpy": 0.0
     },
     "1_day": {
-      "request_count": 106,
-      "cpu_seconds": 350.684,
-      "cost_cpu_jpy": 1.3045444800000001,
-      "cost_req_jpy": 0.006572000000000001,
-      "cost_gcs_jpy": 0.020894000000000003,
-      "total_list_cost_jpy": 1.33201048,
-      "actual_billed_jpy": 0.0
+      "request_count": 102,
+      "cpu_seconds": 350.588,
+      "gross_cost_jpy": 1.330909,
+      "free_tier_discount_jpy": -1.330909,
+      "net_cost_jpy": 0.0
     },
     "30_days": {
       "request_count": 148,
       "cpu_seconds": 417.848,
-      "cost_cpu_jpy": 1.5543945600000002,
-      "cost_req_jpy": 0.009176,
-      "cost_gcs_jpy": 0.029202000000000002,
-      "total_list_cost_jpy": 1.5927725600000002,
-      "actual_billed_jpy": 0.0
+      "gross_cost_jpy": 1.592773,
+      "free_tier_discount_jpy": -1.592773,
+      "net_cost_jpy": 0.0
     }
   }
 }
