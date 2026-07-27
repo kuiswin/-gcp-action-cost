@@ -157,7 +157,7 @@ def main():
         print(f"👉 確定請求合計: ￥{billed_total:,.4f}\n")
 
     # --------------------------------------------------------------------------
-    # 表②: 時間軸マトリックス × 単価で計算定価を動的生成
+    # 表②: 時間軸マトリックス × 単価で計算定価をサービス別縦展開で生成
     # --------------------------------------------------------------------------
     print("【表②: 時間軸マトリックス・インフラ計算定価 ＆ 確定請求額】")
 
@@ -167,54 +167,67 @@ def main():
         if v.get("price_jpy", 0) > 0
     }
 
-    # 数式ラベル用に短縮表示
-    formula_parts_tmpl = [
-        (mkey, meta["price_jpy"], meta["unit"])
+    metric_list = [
+        (mkey, meta["price_jpy"], meta["unit"], meta["label"])
         for mkey, meta in billable.items()
     ]
 
     h2 = (
-        f"{'確定請求額':<12} | "
-        f"{'インフラ計算定価':<16} | "
-        f"{'定価計算数式':<60} | "
-        f"{'時間軸':>10}"
+        f"{'小計/確定請求':<14} | "
+        f"{'掛け算結果':<16} | "
+        f"{'消費量 × 単価':<40} | "
+        f"サービス名  /  時間軸"
     )
-    sep2 = "-" * 110
+    sep2      = "=" * 100
+    sep_block = "-" * 100
     print(h2)
     print(sep2)
 
     result_matrix = {}
     label_order = ["1_minute", "10_minutes", "1_hour", "1_day", "30_days"]
 
-    for label in label_order:
+    for i, label in enumerate(label_order):
         metrics = matrix.get(label)
         if metrics is None:
             continue
 
+        disp_label = label.replace("_", " ")
         gross = 0.0
-        formula_parts = []
-        for mkey, price, unit in formula_parts_tmpl:
-            val = metrics.get(mkey, 0.0)
+
+        # 時間軸ヘッダ
+        print(f"{'':14} | {'':16} | {'':40} | ▶ {disp_label}")
+
+        for mkey, price, unit, svc_label in metric_list:
+            val  = metrics.get(mkey, 0.0)
             cost = val * price
             gross += cost
-            if val != 0.0:  # 値が0のメトリクスは数式から省略
-                formula_parts.append(f"({val:.4g} {unit} × {price:.6f}円)")
+            if cost < 5e-7:         # 表示上 0.000000 円になる行はスキップ
+                continue
+            formula  = f"{val:.4g} {unit} × {price:.6f}円"
+            cost_str = f"{cost:>12.6f} 円"
+            print(
+                f"{'':14} | "
+                f"{cost_str:<16} | "
+                f"{formula:<40} | "
+                f"  {svc_label}"
+            )
 
-        formula_str = " + ".join(formula_parts) if formula_parts else "(消費なし)"
-        disp_label  = label.replace("_", " ")
+        if gross == 0.0:
+            print(f"{'':14} | {'':16} | {'(消費なし)':<40} |")
+
+        # 小計行
+        print(
+            f"{'￥0 (無料枠内)':<14} | "
+            f"{gross:>14.6f} 円 | "
+            f"{'小計':>40} | "
+        )
+        print(sep_block)
 
         result_matrix[label] = {
             **{k: metrics.get(k, 0.0) for k in billable},
-            "gross_cost_jpy":  round(gross, 6),
-            "net_billed_jpy":  0.0,
+            "gross_cost_jpy": round(gross, 6),
+            "net_billed_jpy": 0.0,
         }
-
-        print(
-            f"{'￥0 (無料枠内)':<12} | "
-            f"{gross:>14.6f} 円 | "
-            f"{formula_str:<60} | "
-            f"{disp_label:>10}"
-        )
 
     print(sep2)
 
