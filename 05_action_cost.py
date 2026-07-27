@@ -3,11 +3,9 @@
 Step 5: 既定のGCP公式無料枠 (Always Free) からの実用引き算プロファイリング
 
 - 表①: リソース別・既定のGCP無料枠からの引き算 & 枠残り容量 & 確定請求額
-         → usage_delta.json のメトリクスキー × target_pricing.json の free_tier_metrics
-            で完全動的生成 (ハードコードなし)
-- 表②: 時間軸マトリックス (消費量 × 単価の定価計算数式 ➔ 確定請求額)
-         → 計算対象メトリクスも target_pricing.json から動的に決定
+- 表②: 時間軸マトリックス (消費量 × 単価の定価計算 ➔ 確定請求額)
 
+出力形式: JSON (日本語混じりターミナル表はアライメントが崩れるため)
 を .data/action_cost_result.json に保存・ターミナル出力
 """
 
@@ -15,7 +13,7 @@ import json
 import os
 import sys
 
-DATA_DIR         = os.path.abspath(".data")
+DATA_DIR            = os.path.abspath(".data")
 TARGET_PRICING_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 USAGE_DELTA_FILE    = os.path.join(DATA_DIR, "usage_delta.json")
 OUTPUT_FILE         = os.path.join(DATA_DIR, "action_cost_result.json")
@@ -28,12 +26,12 @@ def build_metric_catalog(pricing_data):
     """
     catalog = {}
     for service_key, service_entry in pricing_data.items():
-        unit_prices    = service_entry.get("unit_prices", service_entry)  # 旧形式互換
-        free_metrics   = service_entry.get("free_tier_metrics", {})
+        unit_prices  = service_entry.get("unit_prices", service_entry)  # 旧形式互換
+        free_metrics = service_entry.get("free_tier_metrics", {})
 
         for metric_key, meta in free_metrics.items():
-            price_key  = meta.get("price_key", "")
-            price_jpy  = unit_prices.get(price_key, 0.0)
+            price_key = meta.get("price_key", "")
+            price_jpy = unit_prices.get(price_key, 0.0)
             catalog[metric_key] = {
                 "label":              meta.get("label", metric_key),
                 "unit":               meta.get("unit", ""),
@@ -43,6 +41,13 @@ def build_metric_catalog(pricing_data):
                 "service_key":        service_key,
             }
     return catalog
+
+
+def fmt_val(val, unit):
+    """数値を読みやすく整形して単位を付ける。"""
+    if val == int(val):
+        return f"{int(val):,} {unit}"
+    return f"{val:,.2f} {unit}"
 
 
 def main():
@@ -68,39 +73,22 @@ def main():
     m30          = matrix.get("30_days", {})
     pricing_data = full_pricing.get("target_unit_prices", {})
 
-    # メトリクスカタログを動的構築
     metric_catalog = build_metric_catalog(pricing_data)
 
-    print(f"・対象プロジェクトID: {project_id}\n")
+    print(f"・対象プロジェクトID: {project_id}")
 
     # --------------------------------------------------------------------------
-    # 表①: 動的メトリクスループで無料枠引き算明細を生成
+    # 表①: 無料枠引き算明細 (JSON出力)
     # --------------------------------------------------------------------------
-    print("【表①: 既定のGCP公式無料枠 (Always Free) からの引き算明細 (過去30日間)】")
+    free_tier_rows = []
+    billed_total   = 0.0
 
-    h1 = (
-        f"{'確定請求':<14} | "
-        f"{'超過消費量':<14} | "
-        f"{'無料枠残量 (引き算結果)':<34} | "
-        f"{'無料枠上限 (月額)':<24} | "
-        f"{'30日消費量':<16} | "
-        f"リソース項目"
-    )
-    sep = "-" * 125
-    print(h1)
-    print(sep)
-
-    result_items = []
-    billed_total = 0.0
-
-    # usage_delta の 30日メトリクスキーを走査
     for metric_key, value_30 in m30.items():
         if metric_key == "window_minutes":
             continue
-
         meta = metric_catalog.get(metric_key)
         if meta is None:
-            continue  # カタログに定義がないメトリクスはスキップ
+            continue
 
         label       = meta["label"]
         unit        = meta["unit"]
@@ -114,110 +102,81 @@ def main():
             over   = max(0.0, value_30 - free_limit)
             rem    = free_limit - min(value_30, free_limit)
             pct_rem = (rem / free_limit) * 100.0
-            billed = over * price_jpy
+            billed  = over * price_jpy
             billed_total += billed
-
-            usage_str = f"{value_30:,.2f} {unit}" if value_30 != int(value_30) else f"{int(value_30):,} {unit}"
-            over_str  = f"{over:,.2f} {unit}"     if over  != int(over)  else f"{int(over):,} {unit}"
-            rem_str   = f"{rem:,.2f} {unit} ({pct_rem:.2f}%残)" if rem != int(rem) else f"{int(rem):,} {unit} ({pct_rem:.2f}%残)"
-            bill_str  = f"￥0 (完全無料)" if billed == 0 else f"￥{billed:,.4f}"
+            row = {
+                "リソース":         label,
+                "30日消費量":       fmt_val(value_30, unit),
+                "無料枠上限":       free_display,
+                "無料枠残量":       fmt_val(rem, unit),
+                "残量率":           f"{pct_rem:.2f}%",
+                "超過消費量":       fmt_val(over, unit),
+                "確定請求":         "￥0 (完全無料)" if billed == 0 else f"￥{billed:,.4f}",
+            }
         else:
-            # 従量制（無料枠なし）
-            over     = value_30
-            billed   = gross
+            billed = gross
             billed_total += billed
-            usage_str = f"{value_30:,.2f} {unit}" if value_30 != int(value_30) else f"{int(value_30):,} {unit}"
-            over_str  = usage_str
-            rem_str   = "従量制枠なし"
-            bill_str  = f"￥0 (未使用)" if value_30 == 0 else f"￥{billed:,.4f}"
+            row = {
+                "リソース":         label,
+                "30日消費量":       fmt_val(value_30, unit),
+                "無料枠上限":       free_display,
+                "無料枠残量":       "従量制枠なし",
+                "残量率":           "N/A",
+                "超過消費量":       fmt_val(value_30, unit),
+                "確定請求":         "￥0 (未使用)" if value_30 == 0 else f"￥{billed:,.4f}",
+            }
 
-        print(
-            f"{bill_str:<14} | "
-            f"{over_str:<14} | "
-            f"{rem_str:<34} | "
-            f"{free_display:<24} | "
-            f"{usage_str:<16} | "
-            f"{label}"
-        )
+        free_tier_rows.append(row)
 
-        result_items.append({
-            "metric_key":   metric_key,
-            "label":        label,
-            "usage_30days": value_30,
-            "unit":         unit,
-            "free_limit":   free_limit,
-            "over":         over,
-            "billed_jpy":   round(billed, 6),
-        })
+    print("\n【表①: 既定のGCP公式無料枠 (Always Free) からの引き算明細 (過去30日間)】")
+    print(json.dumps(free_tier_rows, ensure_ascii=False, indent=2))
 
-    print(sep)
     if billed_total == 0:
-        print("👉 結論: 全てのリソースにおいて無料枠が十分に残っており、確定請求額は【 ￥0 】です。\n")
+        print("\n👉 結論: 全リソースで無料枠が十分に残っており、確定請求額は【 ￥0 】です。")
     else:
-        print(f"👉 確定請求合計: ￥{billed_total:,.4f}\n")
+        print(f"\n👉 確定請求合計: ￥{billed_total:,.4f}")
 
     # --------------------------------------------------------------------------
-    # 表②: 時間軸マトリックス × 単価で計算定価をサービス別縦展開で生成
+    # 表②: 時間軸マトリックス × 単価 (JSON出力)
     # --------------------------------------------------------------------------
-    print("【表②: 時間軸マトリックス・インフラ計算定価 ＆ 確定請求額】")
-
-    # 課金対象メトリクスのみ（price_jpy > 0 のもの）を収集
     billable = {
         k: v for k, v in metric_catalog.items()
         if v.get("price_jpy", 0) > 0
     }
 
-    metric_list = [
-        (mkey, meta["price_jpy"], meta["unit"], meta["label"])
-        for mkey, meta in billable.items()
-    ]
-
-    # 固定ヘッダ（日本語幅ズレを避けるため文字数を手動調整）
-    h2        = "小計/確定請求        |      掛け算結果   |          消費量  単位          単価            | サービス名  /  時間軸"
-    sep2      = "=" * 105
-    sep_block = "-" * 105
-    print(h2)
-    print(sep2)
-
-    result_matrix = {}
     label_order = ["1_minute", "10_minutes", "1_hour", "1_day", "30_days"]
+    time_matrix_out = {}
+    result_matrix   = {}
 
-    for i, label in enumerate(label_order):
+    for label in label_order:
         metrics = matrix.get(label)
         if metrics is None:
             continue
 
         disp_label = label.replace("_", " ")
-        gross = 0.0
+        gross      = 0.0
+        detail     = []
 
-        # 時間軸ヘッダ行
-        print(f"{'':14} | {'':16}   | {'':12}  {'':8}  {'':14}   | ▶ {disp_label}")
-
-        for mkey, price, unit, svc_label in metric_list:
-            val  = metrics.get(mkey, 0.0)
-            cost = val * price
+        for mkey, meta in billable.items():
+            val   = metrics.get(mkey, 0.0)
+            price = meta["price_jpy"]
+            unit  = meta["unit"]
+            cost  = val * price
             gross += cost
-            if cost < 5e-7:         # 表示上 0.000000 円になる行はスキップ
+            if cost < 5e-7:     # 表示上ゼロになるものはスキップ
                 continue
-            print(
-                f"{'':14} | "
-                f"{cost:>14.6f} 円 | "   # 掛け算結果（純粋な数値）
-                f"{val:>12.4g}  "         # 消費量（数値のみ）
-                f"{unit:<8}  "            # 単位（独立カラム）
-                f"× {price:>12.6f}円   | "  # 単価
-                f"  {svc_label}"
-            )
+            detail.append({
+                "サービス": meta["label"],
+                "消費量":   fmt_val(val, unit),
+                "単価":     f"{price:.6f} 円/{unit}",
+                "掛け算結果": f"{cost:.6f} 円",
+            })
 
-        if gross == 0.0:
-            print(f"{'':14} | {'':16}   | {'(消費なし)':>12}  {'':8}  {'':14}   |")
-
-        # 小計行
-        print(
-            f"{'￥0 (無料枠内)':<14} | "
-            f"{gross:>14.6f} 円 | "
-            f"{'':12}  {'':8}  {'小計':>14}   | "
-        )
-        print(sep_block)
+        time_matrix_out[disp_label] = {
+            "明細":         detail if detail else [{"サービス": "(消費なし)"}],
+            "小計":         f"{gross:.6f} 円",
+            "確定請求額":   "￥0 (無料枠内)",
+        }
 
         result_matrix[label] = {
             **{k: metrics.get(k, 0.0) for k in billable},
@@ -225,14 +184,15 @@ def main():
             "net_billed_jpy": 0.0,
         }
 
-    print(sep2)
+    print("\n【表②: 時間軸マトリックス・インフラ計算定価 ＆ 確定請求額】")
+    print(json.dumps(time_matrix_out, ensure_ascii=False, indent=2))
 
     # --------------------------------------------------------------------------
     # JSON保存
     # --------------------------------------------------------------------------
     result = {
-        "project_id":                   project_id,
-        "free_tier_subtractions_30days": result_items,
+        "project_id":                    project_id,
+        "free_tier_subtractions_30days": free_tier_rows,
         "time_matrix":                   result_matrix,
         "total_billed_jpy":              round(billed_total, 6),
     }
