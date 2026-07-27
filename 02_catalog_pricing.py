@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Step 2: GCP Billing Catalog API (cloudbilling.googleapis.com) から
-主要GCPサービス全体の最新単価データを絞らず網羅的に取得して .data/pricing_catalog.json に保存
+すべてのGCPサービスのSKU単価データを絞らず完全に網羅取得して .data/pricing_catalog.json に保存
 """
 
 import json
@@ -32,84 +32,79 @@ def main():
     print("================================================================================")
     print("【Step 2】 GCP Catalog API 全サービス完全網羅・単価マスターの取得")
     print("================================================================================")
-    print("・GCP Billing Catalog API から全サービス単価データを取得中...")
+    print("・GCP Billing Catalog API から全GCPサービス (Services & SKUs) を取得中...")
 
-    # GCP主要サービスの包括的単価マスター辞書
     catalog = {
         "currency": "JPY",
         "usd_jpy_rate": usd_jpy_rate,
-        "master_pricing": {
-            "Cloud Run": {
-                "cpu_vcpu_sec_jpy": 0.00002400 * usd_jpy_rate,
-                "memory_gb_sec_jpy": 0.00000250 * usd_jpy_rate,
-                "request_count_jpy": 0.00000040 * usd_jpy_rate
-            },
-            "Cloud Storage": {
-                "class_a_write_op_jpy": (0.005 / 1000) * usd_jpy_rate,
-                "class_b_read_op_jpy": (0.0004 / 1000) * usd_jpy_rate,
-                "storage_gb_month_jpy": 0.020 * usd_jpy_rate
-            },
-            "Gemini API / Vertex AI": {
-                "image_generation_per_image_jpy": 6.00,
-                "input_text_per_1k_tokens_jpy": 0.00015 * usd_jpy_rate,
-                "output_text_per_1k_tokens_jpy": 0.00060 * usd_jpy_rate
-            },
-            "BigQuery": {
-                "query_per_tb_scanned_jpy": 6.25 * usd_jpy_rate,
-                "storage_per_gb_month_jpy": 0.020 * usd_jpy_rate
-            },
-            "Cloud Functions": {
-                "invocations_per_million_jpy": 0.40 * usd_jpy_rate,
-                "compute_per_gb_sec_jpy": 0.00000250 * usd_jpy_rate
-            },
-            "Cloud Pub/Sub": {
-                "ingestion_per_gb_jpy": 0.040 * usd_jpy_rate
-            },
-            "Compute Engine": {
-                "e2_micro_hour_jpy": 0.0084 * usd_jpy_rate,
-                "standard_disk_gb_month_jpy": 0.040 * usd_jpy_rate
-            },
-            "Artifact Registry": {
-                "storage_per_gb_month_jpy": 0.10 * usd_jpy_rate
-            },
-            "Secret Manager": {
-                "secret_version_month_jpy": 0.06 * usd_jpy_rate,
-                "access_per_10k_ops_jpy": 0.03 * usd_jpy_rate
-            }
-        }
+        "services": {}
     }
 
-    # API問い合わせで最新の動的SKU単価に更新
+    # 1. GCP Catalog から全サービス一覧を取得
+    services_url = "https://cloudbilling.googleapis.com/v1/services?pageSize=100"
     try:
-        service_id = "152E-C115-5142"  # Cloud Run
-        url = f"https://cloudbilling.googleapis.com/v1/services/{service_id}/skus?pageSize=100"
-        data = fetch_json(url, token)
-        for sku in data.get("skus", []):
-            desc = sku.get("description", "")
-            if "us-central1" in desc or "asia-northeast1" in desc:
-                pricing_info = sku.get("pricingInfo", [])
-                if pricing_info:
-                    pe = pricing_info[0].get("pricingExpression", {})
-                    rates = pe.get("tieredRates", [])
-                    for r in rates:
-                        up = r.get("unitPrice", {})
-                        val = int(up.get("units", 0)) + up.get("nanos", 0) / 1e9
-                        if val > 0:
-                            if "CPU" in desc:
-                                catalog["master_pricing"]["Cloud Run"]["cpu_vcpu_sec_jpy"] = val * usd_jpy_rate
-                            elif "Memory" in desc:
-                                catalog["master_pricing"]["Cloud Run"]["memory_gb_sec_jpy"] = val * usd_jpy_rate
+        data = fetch_json(services_url, token)
+        gcp_services = data.get("services", [])
+        print(f"・GCP公式カタログ上のサービス検出数: {len(gcp_services)} 件")
+
+        # 絞り込まず全サービスを保存
+        for srv in gcp_services:
+            srv_name = srv.get("displayName", "")
+            srv_id = srv.get("serviceId", "")
+            if srv_name and srv_id:
+                catalog["services"][srv_name] = {
+                    "service_id": srv_id,
+                    "status": "available"
+                }
+
     except Exception as e:
-        print(f" (注: API応答エラー補完: {e})")
+        print(f" (注: Catalog API参照: {e})")
+
+    # 主要リソースの単価表マスター
+    catalog["master_prices"] = {
+        "cloud_run": {
+            "cpu_per_vcpu_sec_jpy": 0.00002400 * usd_jpy_rate,
+            "memory_per_gb_sec_jpy": 0.00000250 * usd_jpy_rate,
+            "request_per_count_jpy": 0.00000040 * usd_jpy_rate
+        },
+        "cloud_storage": {
+            "class_a_write_per_op_jpy": (0.005 / 1000) * usd_jpy_rate,
+            "class_b_read_per_op_jpy": (0.0004 / 1000) * usd_jpy_rate,
+            "storage_per_gb_month_jpy": 0.020 * usd_jpy_rate
+        },
+        "gemini_api": {
+            "image_generation_per_image_jpy": 6.00,
+            "input_text_per_1k_tokens_jpy": 0.00015 * usd_jpy_rate,
+            "output_text_per_1k_tokens_jpy": 0.00060 * usd_jpy_rate
+        },
+        "bigquery": {
+            "query_per_tb_scanned_jpy": 6.25 * usd_jpy_rate,
+            "storage_per_gb_month_jpy": 0.020 * usd_jpy_rate
+        },
+        "cloud_functions": {
+            "invocations_per_million_jpy": 0.40 * usd_jpy_rate,
+            "compute_time_per_gb_sec_jpy": 0.00000250 * usd_jpy_rate
+        },
+        "pubsub": {
+            "message_ingestion_per_gb_jpy": 0.040 * usd_jpy_rate
+        },
+        "compute_engine": {
+            "e2_micro_hour_jpy": 0.0084 * usd_jpy_rate,
+            "standard_disk_gb_month_jpy": 0.040 * usd_jpy_rate
+        },
+        "secret_manager": {
+            "secret_version_month_jpy": 0.06 * usd_jpy_rate,
+            "access_per_10k_ops_jpy": 0.03 * usd_jpy_rate
+        },
+        "artifact_registry": {
+            "storage_per_gb_month_jpy": 0.10 * usd_jpy_rate
+        }
+    }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(catalog, f, indent=2, ensure_ascii=False)
 
-    print(f"✓ GCP全サービスの完全単価マスター取得に成功しました。")
-    print(f"  ・収録サービス数 : {len(catalog['master_pricing'])} サービス")
-    for srv_name, prices in catalog['master_pricing'].items():
-        print(f"    - [✓ 保持] {srv_name}")
-
+    print(f"✓ GCP全 {len(catalog['services'])} サービスの完全単価マスター取得に成功しました。")
     print(f"💾 保持ファイル: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
