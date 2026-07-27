@@ -1,17 +1,40 @@
 {
   "project_id": "qiita-app-170",
-  "pricing_applied": {
-    "cpu_price_per_sec": 0.00372,
-    "request_price_per_count": 6.2e-05,
-    "gcs_read_price": 6.2e-05,
-    "gcs_write_price": 0.0007750000000000001
-  },
-  "always_free_allowance": {
-    "cloud_run_requests": "2,000,000 req/month",
-    "cloud_run_cpu": "180,000 vCPU-sec/month",
-    "cloud_storage_capacity": "5 GB/month"
-  },
-  "cost_matrix": {
+  "service_breakdown_30days": [
+    {
+      "service": "Cloud Run CPU",
+      "formula": "417.85 秒 ✕ 0.003720 円/秒",
+      "gross": 1.5543945600000002,
+      "free_limit": "180,000 vCPU秒/月",
+      "pct": 0.23213777777777778,
+      "status": "￥0 (無料枠内)"
+    },
+    {
+      "service": "Cloud Run Request",
+      "formula": "148 回 ✕ 0.000062 円/回",
+      "gross": 0.009176,
+      "free_limit": "2,000,000 回/月",
+      "pct": 0.0073999999999999995,
+      "status": "￥0 (無料枠内)"
+    },
+    {
+      "service": "Cloud Storage (Read/Write)",
+      "formula": "Read 296回 + Write 14回",
+      "gross": 0.029202000000000002,
+      "free_limit": "50,000 Read/月",
+      "pct": 0.592,
+      "status": "￥0 (無料枠内)"
+    },
+    {
+      "service": "Gemini API (AI画像)",
+      "formula": "0 枚 ✕ 6.00 円/枚",
+      "gross": 0.0,
+      "free_limit": "従量課金 ($0.040/枚)",
+      "pct": 0.0,
+      "status": "￥0 (未使用)"
+    }
+  ],
+  "time_matrix": {
     "1_minute": {
       "request_count": 0,
       "cpu_seconds": 0.0,
@@ -34,10 +57,10 @@
       "net_cost_jpy": 0.0
     },
     "1_day": {
-      "request_count": 102,
-      "cpu_seconds": 350.588,
-      "gross_cost_jpy": 1.330909,
-      "free_tier_discount_jpy": -1.330909,
+      "request_count": 82,
+      "cpu_seconds": 329.404,
+      "gross_cost_jpy": 1.246835,
+      "free_tier_discount_jpy": -1.246835,
       "net_cost_jpy": 0.0
     },
     "30_days": {
