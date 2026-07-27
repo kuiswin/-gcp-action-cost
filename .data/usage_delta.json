@@ -1,23 +1,41 @@
 {
   "project_id": "qiita-app-170",
-  "measured_at": "2026-07-27T12:25:51.821995+00:00",
-  "monthly_totals": {
-    "request_count": 148.0,
-    "cpu_seconds": 417.8480455765372
-  },
-  "actions": {
-    "page_view": {
-      "name": "記事閲覧 (1 Page View)",
-      "cpu_seconds": 2.823,
-      "gcs_read_ops": 2,
-      "request_count": 1
+  "measured_at": "2026-07-27T13:02:23.384444+00:00",
+  "time_matrix": {
+    "1_minute": {
+      "window_minutes": 1,
+      "request_count": 0,
+      "cpu_seconds": 0.0,
+      "gcs_read_ops": 0,
+      "gcs_write_ops": 0
     },
-    "post_creation": {
-      "name": "記事投稿 (1 Post Creation + Gemini AI画像生成)",
-      "cpu_seconds": 0.35,
-      "gcs_write_ops": 2,
-      "gemini_images": 1,
-      "request_count": 1
+    "10_minutes": {
+      "window_minutes": 10,
+      "request_count": 0,
+      "cpu_seconds": 0.0,
+      "gcs_read_ops": 0,
+      "gcs_write_ops": 0
+    },
+    "1_hour": {
+      "window_minutes": 60,
+      "request_count": 0,
+      "cpu_seconds": 0.0,
+      "gcs_read_ops": 0,
+      "gcs_write_ops": 0
+    },
+    "1_day": {
+      "window_minutes": 1440,
+      "request_count": 133,
+      "cpu_seconds": 364.323,
+      "gcs_read_ops": 266,
+      "gcs_write_ops": 13
+    },
+    "30_days": {
+      "window_minutes": 43200,
+      "request_count": 148,
+      "cpu_seconds": 417.848,
+      "gcs_read_ops": 296,
+      "gcs_write_ops": 14
     }
   }
 }
