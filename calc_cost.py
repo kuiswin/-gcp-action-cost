@@ -2,13 +2,8 @@
 """
 GCP Action Cost Profiler (calc_cost.py)
 --------------------------------------------------------------------------------
-5ステップ順次実行（ローカルJSONパイプライン）エントリポイント:
-
-Step 1: 01_active_services.py  (使用中GCPサービスの自動検出)
-Step 2: 02_catalog_pricing.py  (検出サービスのみのCatalog API単価取得)
-Step 3: 03_service_pricing.py  (①×②のハイブリッド単価マッピング)
-Step 4: 04_measure_delta.py    (2点間・所作別の消費増分プロファイリング)
-Step 5: 05_action_cost.py      (③×④の最終コスト算出)
+ローカル実行（git clone）および 1行ワンライナー実行（curl）の両方に対応した
+All-in-One CLI エントリポイントです。
 --------------------------------------------------------------------------------
 """
 
@@ -16,6 +11,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 import urllib.request
 
 RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
@@ -52,9 +48,10 @@ def run_step(step_num, project_id=None):
         res = subprocess.run(cmd)
         return res.returncode == 0
     else:
-        raw_url = RAW_BASE_URL + script_name
+        # キャッシュ回避用クエリパラメーター付きで最新版を取得
+        raw_url = f"{RAW_BASE_URL}{script_name}?t={int(time.time())}"
         try:
-            req = urllib.request.Request(raw_url)
+            req = urllib.request.Request(raw_url, headers={"Cache-Control": "no-cache"})
             with urllib.request.urlopen(req) as resp:
                 code = resp.read().decode("utf-8")
                 
