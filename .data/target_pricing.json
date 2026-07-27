@@ -1,0 +1,17 @@
+{
+  "project_id": "qiita-app-170",
+  "active_services": [
+    "Cloud Run",
+    "Cloud Storage",
+    "Gemini API / Vertex AI",
+    "BigQuery",
+    "Pub/Sub"
+  ],
+  "resource_unit_prices": {
+    "cloud_run_cpu_vcpu_sec_jpy": 0.00174282,
+    "cloud_run_request_jpy": 6.2e-05,
+    "gcs_write_class_a_jpy": 0.0007750000000000001,
+    "gcs_read_class_b_jpy": 6.2e-05,
+    "gemini_image_generation_jpy": 6.0
+  }
+}
