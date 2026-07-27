@@ -13,8 +13,16 @@ import subprocess
 import sys
 import urllib.request
 
-BASE_DIR = os.path.dirname(__file__) if __file__ and not __file__.startswith("/dev/fd") else os.getcwd()
 RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
+
+def get_base_dir():
+    try:
+        main_file = __file__
+        if main_file and not main_file.startswith("/dev/fd") and os.path.exists(main_file):
+            return os.path.dirname(os.path.abspath(main_file))
+    except Exception:
+        pass
+    return os.getcwd()
 
 def run_step(step_num, project_id=None):
     step_scripts = {
@@ -29,9 +37,10 @@ def run_step(step_num, project_id=None):
         print(f"❌ 無効なステップ番号です: {step_num}", file=sys.stderr)
         return False
 
-    script_path = os.path.join(BASE_DIR, script_name)
+    base_dir = get_base_dir()
+    script_path = os.path.join(base_dir, script_name)
 
-    # ローカルにファイルが存在する場合はローカルを実行
+    # ローカルディレクトリに該当スクリプトファイルが存在する場合
     if os.path.exists(script_path):
         cmd = [sys.executable, script_path]
         if step_num == 2 and project_id:
@@ -39,14 +48,13 @@ def run_step(step_num, project_id=None):
         res = subprocess.run(cmd)
         return res.returncode == 0
     else:
-        # curl等で単体実行された場合は GitHub から動的ダウンロードして実行
+        # curl等のパイプワンライナー実行時: GitHub Rawから動的取得して実行
         raw_url = RAW_BASE_URL + script_name
         try:
             req = urllib.request.Request(raw_url)
             with urllib.request.urlopen(req) as resp:
                 code = resp.read().decode("utf-8")
                 
-            # 一時ファイルに書き出して実行
             tmp_dir = os.path.join(os.getcwd(), ".data")
             os.makedirs(tmp_dir, exist_ok=True)
             tmp_file = os.path.join(tmp_dir, f"_tmp_{script_name}")
