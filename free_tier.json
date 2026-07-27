@@ -1,0 +1,70 @@
+{
+  "_comment": "GCP Always Free tier limits - https://cloud.google.com/free/docs/free-cloud-features",
+  "free_tier": {
+    "cloud_run": {
+      "metrics": {
+        "cpu_seconds": {
+          "label": "Cloud Run CPU",
+          "unit": "vCPU秒",
+          "price_key": "cpu_per_vcpu_sec_jpy",
+          "free_limit": 180000.0,
+          "free_limit_display": "180,000 vCPU秒/月"
+        },
+        "request_count": {
+          "label": "Cloud Run Request",
+          "unit": "回",
+          "price_key": "request_per_count_jpy",
+          "free_limit": 2000000.0,
+          "free_limit_display": "2,000,000 回/月"
+        }
+      }
+    },
+    "cloud_storage": {
+      "metrics": {
+        "gcs_read_ops": {
+          "label": "Cloud Storage Read",
+          "unit": "回",
+          "price_key": "class_b_read_per_op_jpy",
+          "free_limit": 50000.0,
+          "free_limit_display": "50,000 回/月"
+        },
+        "gcs_write_ops": {
+          "label": "Cloud Storage Write",
+          "unit": "回",
+          "price_key": "class_a_write_per_op_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "gemini_api": {
+      "metrics": {
+        "image_gen_count": {
+          "label": "Gemini API (AI画像生成)",
+          "unit": "枚",
+          "price_key": "image_generation_per_image_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制 ($0.040/枚)"
+        },
+        "text_input_tokens": {
+          "label": "Gemini API (テキスト入力)",
+          "unit": "1kトークン",
+          "price_key": "input_text_per_1k_tokens_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制"
+        }
+      }
+    },
+    "bigquery": {
+      "metrics": {
+        "query_tb_scanned": {
+          "label": "BigQuery クエリ",
+          "unit": "TB",
+          "price_key": "query_per_tb_scanned_jpy",
+          "free_limit": 1.0,
+          "free_limit_display": "1 TB/月"
+        }
+      }
+    }
+  }
+}
