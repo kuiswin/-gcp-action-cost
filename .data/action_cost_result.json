@@ -1,10 +1,10 @@
 {
   "project_id": "qiita-app-170",
   "pricing_applied": {
-    "cpu_price_per_sec": 0.00174282,
+    "cpu_price_per_sec": 0.00372,
     "request_price_per_count": 6.2e-05,
     "gcs_read_price": 6.2e-05,
-    "gcs_write_price": 0.0007750000000000001
+    "gcs_write_price": 0.000775
   },
   "cost_matrix": {
     "1_minute": {
@@ -35,21 +35,21 @@
       "actual_billed_jpy": 0.0
     },
     "1_day": {
-      "request_count": 133,
-      "cpu_seconds": 364.323,
-      "cost_cpu_jpy": 0.6349494108599999,
-      "cost_req_jpy": 0.008246,
-      "cost_gcs_jpy": 0.026567,
-      "total_list_cost_jpy": 0.6697624108599999,
+      "request_count": 128,
+      "cpu_seconds": 351.724,
+      "cost_cpu_jpy": 1.3084132800000001,
+      "cost_req_jpy": 0.007936,
+      "cost_gcs_jpy": 0.025172,
+      "total_list_cost_jpy": 1.34152128,
       "actual_billed_jpy": 0.0
     },
     "30_days": {
       "request_count": 148,
       "cpu_seconds": 417.848,
-      "cost_cpu_jpy": 0.72823385136,
+      "cost_cpu_jpy": 1.5543945600000002,
       "cost_req_jpy": 0.009176,
-      "cost_gcs_jpy": 0.029202000000000002,
-      "total_list_cost_jpy": 0.7666118513599999,
+      "cost_gcs_jpy": 0.029202,
+      "total_list_cost_jpy": 1.5927725600000002,
       "actual_billed_jpy": 0.0
     }
   }
