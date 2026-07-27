@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Step 3: Step 1 (検出サービス) × Step 2 (アクティブサービス単価) のハイブリッド単価マップを .data/target_pricing.json に保存
+Step 3: Step 1 (全有効化サービス) × Step 2 (全単価マスター) を照合して「実際に利用中のサービスと適用単価」のハイブリッドを生成
 """
 
 import json
@@ -14,7 +14,7 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 
 def main():
     print("================================================================================")
-    print("【Step 3】 ハイブリッド単価マッピング (Step 1 サービス × Step 2 単価)")
+    print("【Step 3】 ハイブリッド単価マッピング (Step 1 サービス × Step 2 単価マスター)")
     print("================================================================================")
 
     if not os.path.exists(SERVICES_FILE):
@@ -25,36 +25,44 @@ def main():
         sys.exit(1)
 
     with open(SERVICES_FILE, "r", encoding="utf-8") as f:
-        active_data = json.load(f)
+        services_data = json.load(f)
 
     with open(CATALOG_FILE, "r", encoding="utf-8") as f:
         catalog = json.load(f)
 
-    active_names = [s["service_name"] for s in active_data.get("active_services", [])]
-    project_id = active_data.get("project_id", "qiita-app-170")
+    active_list = services_data.get("active_services", [])
+    active_api_names = [s["api_name"] for s in active_list]
+    active_titles = [s["service_name"] for s in active_list]
+    project_id = services_data.get("project_id", "qiita-app-170")
 
     target_pricing = {
         "project_id": project_id,
-        "active_services": active_names,
-        "resource_unit_prices": {}
+        "active_services_count": len(active_list),
+        "target_unit_prices": {}
     }
 
-    print(f"・対象プロジェクト: {project_id}")
-    print(f"・検出サービス数  : {len(active_names)} 件 ({', '.join(active_names)})")
+    print(f"・対象プロジェクトID: {project_id}")
+    print(f"・検出有効サービス数: {len(active_list)} 件")
 
-    if "Cloud Run" in active_names and "cloud_run" in catalog:
-        target_pricing["resource_unit_prices"]["cloud_run_cpu_vcpu_sec_jpy"] = catalog["cloud_run"]["cpu_per_vcpu_sec_jpy"]
-        target_pricing["resource_unit_prices"]["cloud_run_request_jpy"] = catalog["cloud_run"]["request_per_count_jpy"]
-        print(f"  ・[Cloud Run] CPU: {catalog['cloud_run']['cpu_per_vcpu_sec_jpy']:.6f} 円/vCPU秒, Req: {catalog['cloud_run']['request_per_count_jpy']:.6f} 円/回")
+    if "run.googleapis.com" in active_api_names:
+        target_pricing["target_unit_prices"]["cloud_run"] = catalog.get("cloud_run", {})
+        print(f"  ・[✓ マッチ] Cloud Run 適用単価を設定")
 
-    if "Cloud Storage" in active_names and "cloud_storage" in catalog:
-        target_pricing["resource_unit_prices"]["gcs_write_class_a_jpy"] = catalog["cloud_storage"]["class_a_write_per_op_jpy"]
-        target_pricing["resource_unit_prices"]["gcs_read_class_b_jpy"] = catalog["cloud_storage"]["class_b_read_per_op_jpy"]
-        print(f"  ・[Cloud Storage] Write: {catalog['cloud_storage']['class_a_write_per_op_jpy']:.6f} 円/回, Read: {catalog['cloud_storage']['class_b_read_per_op_jpy']:.6f} 円/回")
+    if "storage.googleapis.com" in active_api_names or "storage-component.googleapis.com" in active_api_names:
+        target_pricing["target_unit_prices"]["cloud_storage"] = catalog.get("cloud_storage", {})
+        print(f"  ・[✓ マッチ] Cloud Storage 適用単価を設定")
 
-    if any("Gemini" in s or "Vertex" in s for s in active_names) and "gemini_api" in catalog:
-        target_pricing["resource_unit_prices"]["gemini_image_generation_jpy"] = catalog["gemini_api"]["image_generation_per_image_jpy"]
-        print(f"  ・[Gemini API] 画像生成: {catalog['gemini_api']['image_generation_per_image_jpy']:.2f} 円/枚")
+    if "generativelanguage.googleapis.com" in active_api_names or "aiplatform.googleapis.com" in active_api_names:
+        target_pricing["target_unit_prices"]["gemini_api"] = catalog.get("gemini_api", {})
+        print(f"  ・[✓ マッチ] Gemini API 適用単価を設定")
+
+    if "bigquery.googleapis.com" in active_api_names:
+        target_pricing["target_unit_prices"]["bigquery"] = catalog.get("bigquery", {})
+        print(f"  ・[✓ マッチ] BigQuery 適用単価を設定")
+
+    if "pubsub.googleapis.com" in active_api_names:
+        target_pricing["target_unit_prices"]["pubsub"] = catalog.get("pubsub", {})
+        print(f"  ・[✓ マッチ] Cloud Pub/Sub 適用単価を設定")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(target_pricing, f, indent=2, ensure_ascii=False)
