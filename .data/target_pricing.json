@@ -1,6 +1,6 @@
 {
   "project_id": "qiita-app-170",
-  "active_services_count": 32,
+  "app_name": "Serverless CMS",
   "target_unit_prices": {
     "cloud_run": {
       "cpu_per_vcpu_sec_jpy": 0.00372,
@@ -16,13 +16,6 @@
       "image_generation_per_image_jpy": 6.0,
       "input_text_per_1k_tokens_jpy": 0.023249999999999996,
       "output_text_per_1k_tokens_jpy": 0.09299999999999999
-    },
-    "bigquery": {
-      "query_per_tb_scanned_jpy": 968.75,
-      "storage_per_gb_month_jpy": 3.1
-    },
-    "pubsub": {
-      "message_ingestion_per_gb_jpy": 6.2
     }
   }
 }

@@ -4,9 +4,9 @@
     {
       "service": "Cloud Run CPU",
       "formula": "417.85 秒 ✕ 0.003720 円/秒",
-      "gross": 1.5543945600000002,
+      "gross": 1.5544020000000003,
       "free_limit": "180,000 vCPU秒/月",
-      "pct": 0.23213777777777778,
+      "pct": 0.2321388888888889,
       "status": "￥0 (無料枠内)"
     },
     {
@@ -36,38 +36,38 @@
   ],
   "time_matrix": {
     "1_minute": {
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gross_cost_jpy": 0.0,
-      "free_tier_discount_jpy": -0.0,
+      "request_count": 0.0034,
+      "cpu_seconds": 0.0097,
+      "gross_cost_jpy": 3.7e-05,
+      "free_tier_discount_jpy": -3.7e-05,
       "net_cost_jpy": 0.0
     },
     "10_minutes": {
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gross_cost_jpy": 0.0,
-      "free_tier_discount_jpy": -0.0,
+      "request_count": 0.03,
+      "cpu_seconds": 0.1,
+      "gross_cost_jpy": 0.000378,
+      "free_tier_discount_jpy": -0.000378,
       "net_cost_jpy": 0.0
     },
     "1_hour": {
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gross_cost_jpy": 0.0,
-      "free_tier_discount_jpy": -0.0,
+      "request_count": 0.21,
+      "cpu_seconds": 0.58,
+      "gross_cost_jpy": 0.002212,
+      "free_tier_discount_jpy": -0.002212,
       "net_cost_jpy": 0.0
     },
     "1_day": {
-      "request_count": 82,
-      "cpu_seconds": 329.404,
-      "gross_cost_jpy": 1.246835,
-      "free_tier_discount_jpy": -1.246835,
+      "request_count": 4.9,
+      "cpu_seconds": 13.93,
+      "gross_cost_jpy": 0.053125,
+      "free_tier_discount_jpy": -0.053125,
       "net_cost_jpy": 0.0
     },
     "30_days": {
       "request_count": 148,
-      "cpu_seconds": 417.848,
-      "gross_cost_jpy": 1.592773,
-      "free_tier_discount_jpy": -1.592773,
+      "cpu_seconds": 417.85,
+      "gross_cost_jpy": 1.59278,
+      "free_tier_discount_jpy": -1.59278,
       "net_cost_jpy": 0.0
     }
   }

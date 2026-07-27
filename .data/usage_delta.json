@@ -1,39 +1,39 @@
 {
   "project_id": "qiita-app-170",
-  "measured_at": "2026-07-27T13:51:13.553829+00:00",
+  "measured_at": "2026-07-27T13:54:10.856631+00:00",
   "time_matrix": {
     "1_minute": {
       "window_minutes": 1,
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gcs_read_ops": 0,
-      "gcs_write_ops": 0
+      "request_count": 0.0034,
+      "cpu_seconds": 0.0097,
+      "gcs_read_ops": 0.0069,
+      "gcs_write_ops": 0.0003
     },
     "10_minutes": {
       "window_minutes": 10,
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gcs_read_ops": 0,
-      "gcs_write_ops": 0
+      "request_count": 0.03,
+      "cpu_seconds": 0.1,
+      "gcs_read_ops": 0.07,
+      "gcs_write_ops": 0.0
     },
     "1_hour": {
       "window_minutes": 60,
-      "request_count": 0,
-      "cpu_seconds": 0.0,
-      "gcs_read_ops": 0,
-      "gcs_write_ops": 0
+      "request_count": 0.21,
+      "cpu_seconds": 0.58,
+      "gcs_read_ops": 0.41,
+      "gcs_write_ops": 0.02
     },
     "1_day": {
       "window_minutes": 1440,
-      "request_count": 82,
-      "cpu_seconds": 329.404,
-      "gcs_read_ops": 164,
-      "gcs_write_ops": 8
+      "request_count": 4.9,
+      "cpu_seconds": 13.93,
+      "gcs_read_ops": 9.9,
+      "gcs_write_ops": 0.5
     },
     "30_days": {
       "window_minutes": 43200,
       "request_count": 148,
-      "cpu_seconds": 417.848,
+      "cpu_seconds": 417.85,
       "gcs_read_ops": 296,
       "gcs_write_ops": 14
     }
