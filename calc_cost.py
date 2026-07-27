@@ -2,8 +2,13 @@
 """
 GCP Action Cost Profiler (calc_cost.py)
 --------------------------------------------------------------------------------
-ローカル実行（git clone）および 1行ワンライナー実行（curl）の両方に対応した
-All-in-One CLI エントリポイントです。
+5ステップ順次実行（ローカルJSONパイプライン）エントリポイント:
+
+Step 1: 01_active_services.py  (使用中GCPサービスの自動検出)
+Step 2: 02_catalog_pricing.py  (検出サービスのみのCatalog API単価取得)
+Step 3: 03_service_pricing.py  (①×②のハイブリッド単価マッピング)
+Step 4: 04_measure_delta.py    (2点間・所作別の消費増分プロファイリング)
+Step 5: 05_action_cost.py      (③×④の最終コスト算出)
 --------------------------------------------------------------------------------
 """
 
@@ -26,8 +31,8 @@ def get_base_dir():
 
 def run_step(step_num, project_id=None):
     step_scripts = {
-        1: "01_catalog_pricing.py",
-        2: "02_active_services.py",
+        1: "01_active_services.py",
+        2: "02_catalog_pricing.py",
         3: "03_service_pricing.py",
         4: "04_measure_delta.py",
         5: "05_action_cost.py",
@@ -42,7 +47,7 @@ def run_step(step_num, project_id=None):
 
     if os.path.exists(script_path):
         cmd = [sys.executable, script_path]
-        if step_num == 2 and project_id:
+        if step_num == 1 and project_id:
             cmd.append(project_id)
         res = subprocess.run(cmd)
         return res.returncode == 0
@@ -60,7 +65,7 @@ def run_step(step_num, project_id=None):
                 f.write(code)
                 
             cmd = [sys.executable, tmp_file]
-            if step_num == 2 and project_id:
+            if step_num == 1 and project_id:
                 cmd.append(project_id)
             res = subprocess.run(cmd)
             
