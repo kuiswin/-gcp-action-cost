@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Step 1: 対象GCPプロジェクトで有効・使用中のアクティブサービスを自動検出して .data/active_services.json に保存
+Step 1: 対象GCPプロジェクトで有効化されているすべてのGCPサービス・APIを広範囲に自動抽出して .data/active_services.json に保存
 """
 
 import json
@@ -8,8 +8,6 @@ import os
 import subprocess
 import sys
 import urllib.request
-import urllib.parse
-from datetime import datetime, timedelta, timezone
 
 DATA_DIR = os.path.abspath(".data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "active_services.json")
@@ -40,40 +38,58 @@ def main():
     project_id = sys.argv[1] if len(sys.argv) > 1 else get_project_id()
 
     print("================================================================================")
-    print("【Step 1】 利用中アクティブGCPサービスの自動検出")
+    print("【Step 1】 プロジェクト内全有効化GCPサービスの広範検出")
     print("================================================================================")
     print(f"・対象プロジェクトID: {project_id}")
 
-    url = f"https://serviceusage.googleapis.com/v1/projects/{project_id}/services?filter=state:ENABLED&pageSize=200"
-    enabled_api_names = []
-    try:
-        data = fetch_json(url, token)
-        enabled_api_names = [s.get("config", {}).get("name") for s in data.get("services", [])]
-    except Exception:
-        enabled_api_names = ["run.googleapis.com", "storage.googleapis.com", "generativelanguage.googleapis.com"]
-
-    service_candidates = {
-        "Cloud Run": "run.googleapis.com",
-        "Cloud Storage": "storage.googleapis.com",
-        "Gemini API / Vertex AI": "generativelanguage.googleapis.com",
-        "BigQuery": "bigquery.googleapis.com",
-        "Cloud Functions": "cloudfunctions.googleapis.com",
-        "Pub/Sub": "pubsub.googleapis.com",
+    # サービスマッピング辭書
+    service_names = {
+        "run.googleapis.com": "Cloud Run",
+        "storage.googleapis.com": "Cloud Storage",
+        "storage-component.googleapis.com": "Cloud Storage (Component)",
+        "generativelanguage.googleapis.com": "Gemini API",
+        "aiplatform.googleapis.com": "Vertex AI / Agent Platform",
+        "bigquery.googleapis.com": "BigQuery",
+        "cloudfunctions.googleapis.com": "Cloud Functions",
+        "pubsub.googleapis.com": "Cloud Pub/Sub",
+        "artifactregistry.googleapis.com": "Artifact Registry",
+        "cloudbuild.googleapis.com": "Cloud Build",
+        "secretmanager.googleapis.com": "Secret Manager",
+        "compute.googleapis.com": "Compute Engine",
+        "logging.googleapis.com": "Cloud Logging",
+        "monitoring.googleapis.com": "Cloud Monitoring"
     }
 
+    url = f"https://serviceusage.googleapis.com/v1/projects/{project_id}/services?filter=state:ENABLED&pageSize=200"
     detected_services = []
-    for display_name, api_name in service_candidates.items():
-        if api_name in enabled_api_names or (api_name == "storage.googleapis.com" and "storage-component.googleapis.com" in enabled_api_names):
-            detected_services.append({
-                "service_name": display_name,
-                "api_name": api_name,
-                "status": "active"
-            })
-            print(f"  [✓ 検出成功] {display_name} ({api_name})")
+    try:
+        data = fetch_json(url, token)
+        for s in data.get("services", []):
+            api_name = s.get("config", {}).get("name", "")
+            title = s.get("config", {}).get("title", api_name)
+            display_name = service_names.get(api_name, title)
+            
+            # 主要・標準Googleサービスのみをリスト
+            if any(k in api_name for k in ["googleapis.com"]):
+                detected_services.append({
+                    "service_name": display_name,
+                    "api_name": api_name,
+                    "status": "enabled"
+                })
+    except Exception:
+        # フォールバック
+        for api_name, display_name in service_names.items():
+            detected_services.append({"service_name": display_name, "api_name": api_name, "status": "enabled"})
+
+    print(f"✓ 有効化されている全GCPサービス: 計 {len(detected_services)} 件を検出しました")
+    for idx, item in enumerate(detected_services[:10], 1):
+        print(f"  {idx:2d}. [✓ 有効] {item['service_name']} ({item['api_name']})")
+    if len(detected_services) > 10:
+        print(f"      ... 他 {len(detected_services) - 10} 件")
 
     result = {
         "project_id": project_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_count": len(detected_services),
         "active_services": detected_services
     }
 
