@@ -8,7 +8,7 @@ import os
 import subprocess
 import urllib.request
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), ".data")
+DATA_DIR = os.path.abspath(".data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "pricing_catalog.json")
 
 def get_access_token():
@@ -33,7 +33,6 @@ def main():
     print("================================================================================")
     print("・GCP Cloud Billing Catalog API (cloudbilling.googleapis.com) へ問い合わせ中...")
 
-    # 代表的リソースのデフォルト基準単価マップ ($ & 円)
     catalog = {
         "currency": "JPY",
         "usd_jpy_rate": usd_jpy_rate,
@@ -55,7 +54,6 @@ def main():
         }
     }
 
-    # APIから動的取得を試行
     try:
         service_id = "152E-C115-5142"  # Cloud Run
         url = f"https://cloudbilling.googleapis.com/v1/services/{service_id}/skus?pageSize=100"

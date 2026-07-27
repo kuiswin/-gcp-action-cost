@@ -40,7 +40,6 @@ def run_step(step_num, project_id=None):
     base_dir = get_base_dir()
     script_path = os.path.join(base_dir, script_name)
 
-    # ローカルディレクトリに該当スクリプトファイルが存在する場合
     if os.path.exists(script_path):
         cmd = [sys.executable, script_path]
         if step_num == 2 and project_id:
@@ -48,14 +47,13 @@ def run_step(step_num, project_id=None):
         res = subprocess.run(cmd)
         return res.returncode == 0
     else:
-        # curl等のパイプワンライナー実行時: GitHub Rawから動的取得して実行
         raw_url = RAW_BASE_URL + script_name
         try:
             req = urllib.request.Request(raw_url)
             with urllib.request.urlopen(req) as resp:
                 code = resp.read().decode("utf-8")
                 
-            tmp_dir = os.path.join(os.getcwd(), ".data")
+            tmp_dir = os.path.abspath(".data")
             os.makedirs(tmp_dir, exist_ok=True)
             tmp_file = os.path.join(tmp_dir, f"_tmp_{script_name}")
             with open(tmp_file, "w", encoding="utf-8") as f:

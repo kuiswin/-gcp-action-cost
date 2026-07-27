@@ -11,7 +11,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), ".data")
+DATA_DIR = os.path.abspath(".data")
 SERVICES_FILE = os.path.join(DATA_DIR, "active_services.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "usage_delta.json")
 
@@ -89,7 +89,7 @@ def main():
                 "request_count": 1
             },
             "post_creation": {
-                "name": "記事投稿 (1 Post Creation + Gemini AI画像生成)",
+                "name": "記事投稿 (1 Post Creation + Gemini AI画像自動生成)",
                 "cpu_seconds": 0.350,
                 "gcs_write_ops": 2,
                 "gemini_images": 1,

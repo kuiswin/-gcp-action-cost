@@ -11,7 +11,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), ".data")
+DATA_DIR = os.path.abspath(".data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "active_services.json")
 
 def get_access_token():
@@ -44,7 +44,6 @@ def main():
     print("================================================================================")
     print(f"・対象プロジェクトID: {project_id}")
 
-    # 有効化API一覧をService Usage APIから取得
     url = f"https://serviceusage.googleapis.com/v1/projects/{project_id}/services?filter=state:ENABLED&pageSize=200"
     enabled_api_names = []
     try:
