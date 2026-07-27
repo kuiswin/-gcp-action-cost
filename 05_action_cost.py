@@ -7,7 +7,7 @@ import json
 import os
 import sys
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), ".data")
+DATA_DIR = os.path.abspath(".data")
 TARGET_PRICING_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 USAGE_DELTA_FILE = os.path.join(DATA_DIR, "usage_delta.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "action_cost_result.json")
@@ -30,7 +30,6 @@ def main():
     with open(USAGE_DELTA_FILE, "r", encoding="utf-8") as f:
         delta = json.load(f)
 
-    # 1. 閲覧コスト
     pv = delta["actions"]["page_view"]
     cpu_price = pricing.get("cloud_run_cpu_vcpu_sec_jpy", 0.00372)
     req_price = pricing.get("cloud_run_request_jpy", 0.000062)
@@ -40,11 +39,9 @@ def main():
 
     cost_view = (pv["cpu_seconds"] * cpu_price) + (pv["request_count"] * req_price) + (pv["gcs_read_ops"] * gcs_read_price)
 
-    # 2. 投稿コスト
     post = delta["actions"]["post_creation"]
     cost_post = (post["cpu_seconds"] * cpu_price) + (post["request_count"] * req_price) + (post["gcs_write_ops"] * gcs_write_price) + (post["gemini_images"] * gemini_price)
 
-    # 3. 月間実績
     totals = delta.get("monthly_totals", {})
     monthly_cost = (totals.get("cpu_seconds", 0) * cpu_price) + (totals.get("request_count", 0) * req_price)
 

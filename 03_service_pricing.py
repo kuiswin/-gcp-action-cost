@@ -7,7 +7,7 @@ import json
 import os
 import sys
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), ".data")
+DATA_DIR = os.path.abspath(".data")
 CATALOG_FILE = os.path.join(DATA_DIR, "pricing_catalog.json")
 SERVICES_FILE = os.path.join(DATA_DIR, "active_services.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "target_pricing.json")
