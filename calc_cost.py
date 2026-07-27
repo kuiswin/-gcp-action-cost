@@ -2,8 +2,8 @@
 """
 GCP Action Cost Profiler (calc_cost.py)
 --------------------------------------------------------------------------------
-5ステップ（出世魚パイプライン）を順次実行して JSON パイプラインでデータを引き継ぎ、
-1所作コストと月間実績を完全算出する All-in-One CLI エントリポイントです。
+ローカル実行（git clone）および 1行ワンライナー実行（curl）の両方に対応した
+All-in-One CLI エントリポイントです。
 --------------------------------------------------------------------------------
 """
 
@@ -11,8 +11,10 @@ import argparse
 import os
 import subprocess
 import sys
+import urllib.request
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(__file__) if __file__ and not __file__.startswith("/dev/fd") else os.getcwd()
+RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
 
 def run_step(step_num, project_id=None):
     step_scripts = {
@@ -28,12 +30,40 @@ def run_step(step_num, project_id=None):
         return False
 
     script_path = os.path.join(BASE_DIR, script_name)
-    cmd = [sys.executable, script_path]
-    if step_num == 2 and project_id:
-        cmd.append(project_id)
 
-    res = subprocess.run(cmd)
-    return res.returncode == 0
+    # ローカルにファイルが存在する場合はローカルを実行
+    if os.path.exists(script_path):
+        cmd = [sys.executable, script_path]
+        if step_num == 2 and project_id:
+            cmd.append(project_id)
+        res = subprocess.run(cmd)
+        return res.returncode == 0
+    else:
+        # curl等で単体実行された場合は GitHub から動的ダウンロードして実行
+        raw_url = RAW_BASE_URL + script_name
+        try:
+            req = urllib.request.Request(raw_url)
+            with urllib.request.urlopen(req) as resp:
+                code = resp.read().decode("utf-8")
+                
+            # 一時ファイルに書き出して実行
+            tmp_dir = os.path.join(os.getcwd(), ".data")
+            os.makedirs(tmp_dir, exist_ok=True)
+            tmp_file = os.path.join(tmp_dir, f"_tmp_{script_name}")
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                f.write(code)
+                
+            cmd = [sys.executable, tmp_file]
+            if step_num == 2 and project_id:
+                cmd.append(project_id)
+            res = subprocess.run(cmd)
+            
+            if os.path.exists(tmp_file):
+                os.remove(tmp_file)
+            return res.returncode == 0
+        except Exception as e:
+            print(f"❌ GitHubからのステップ読み込みに失敗しました ({raw_url}): {e}", file=sys.stderr)
+            return False
 
 def main():
     parser = argparse.ArgumentParser(description="GCP Action Cost Profiler (All-in-One CLI)")
