@@ -172,14 +172,10 @@ def main():
         for mkey, meta in billable.items()
     ]
 
-    h2 = (
-        f"{'小計/確定請求':<14} | "
-        f"{'掛け算結果':<16} | "
-        f"{'消費量 × 単価':<40} | "
-        f"サービス名  /  時間軸"
-    )
-    sep2      = "=" * 100
-    sep_block = "-" * 100
+    # 固定ヘッダ（日本語幅ズレを避けるため文字数を手動調整）
+    h2        = "小計/確定請求        |      掛け算結果   |          消費量  単位          単価            | サービス名  /  時間軸"
+    sep2      = "=" * 105
+    sep_block = "-" * 105
     print(h2)
     print(sep2)
 
@@ -194,8 +190,8 @@ def main():
         disp_label = label.replace("_", " ")
         gross = 0.0
 
-        # 時間軸ヘッダ
-        print(f"{'':14} | {'':16} | {'':40} | ▶ {disp_label}")
+        # 時間軸ヘッダ行
+        print(f"{'':14} | {'':16}   | {'':12}  {'':8}  {'':14}   | ▶ {disp_label}")
 
         for mkey, price, unit, svc_label in metric_list:
             val  = metrics.get(mkey, 0.0)
@@ -203,23 +199,23 @@ def main():
             gross += cost
             if cost < 5e-7:         # 表示上 0.000000 円になる行はスキップ
                 continue
-            formula  = f"{val:.4g} {unit} × {price:.6f}円"
-            cost_str = f"{cost:>12.6f} 円"
             print(
                 f"{'':14} | "
-                f"{cost_str:<16} | "
-                f"{formula:<40} | "
+                f"{cost:>14.6f} 円 | "   # 掛け算結果（純粋な数値）
+                f"{val:>12.4g}  "         # 消費量（数値のみ）
+                f"{unit:<8}  "            # 単位（独立カラム）
+                f"× {price:>12.6f}円   | "  # 単価
                 f"  {svc_label}"
             )
 
         if gross == 0.0:
-            print(f"{'':14} | {'':16} | {'(消費なし)':<40} |")
+            print(f"{'':14} | {'':16}   | {'(消費なし)':>12}  {'':8}  {'':14}   |")
 
         # 小計行
         print(
             f"{'￥0 (無料枠内)':<14} | "
             f"{gross:>14.6f} 円 | "
-            f"{'小計':>40} | "
+            f"{'':12}  {'':8}  {'小計':>14}   | "
         )
         print(sep_block)
 
