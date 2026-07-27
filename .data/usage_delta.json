@@ -1,6 +1,6 @@
 {
   "project_id": "qiita-app-170",
-  "measured_at": "2026-07-27T13:15:47.540388+00:00",
+  "measured_at": "2026-07-27T13:35:59.838852+00:00",
   "time_matrix": {
     "1_minute": {
       "window_minutes": 1,
@@ -25,10 +25,10 @@
     },
     "1_day": {
       "window_minutes": 1440,
-      "request_count": 128,
-      "cpu_seconds": 351.724,
-      "gcs_read_ops": 256,
-      "gcs_write_ops": 12
+      "request_count": 106,
+      "cpu_seconds": 350.684,
+      "gcs_read_ops": 212,
+      "gcs_write_ops": 10
     },
     "30_days": {
       "window_minutes": 43200,
