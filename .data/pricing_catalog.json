@@ -1,0 +1,20 @@
+{
+  "currency": "JPY",
+  "usd_jpy_rate": 155.0,
+  "cloud_run": {
+    "cpu_per_vcpu_sec_usd": 1.1244e-05,
+    "cpu_per_vcpu_sec_jpy": 0.00174282,
+    "memory_per_gb_sec_usd": 1.93e-06,
+    "memory_per_gb_sec_jpy": 0.00029915000000000003,
+    "request_per_count_usd": 4e-07,
+    "request_per_count_jpy": 6.2e-05
+  },
+  "cloud_storage": {
+    "class_a_write_per_op_jpy": 0.0007750000000000001,
+    "class_b_read_per_op_jpy": 6.2e-05,
+    "storage_per_gb_month_jpy": 3.1
+  },
+  "gemini_api": {
+    "image_generation_per_image_jpy": 6.0
+  }
+}

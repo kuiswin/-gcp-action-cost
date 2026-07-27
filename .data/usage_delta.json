@@ -1,0 +1,23 @@
+{
+  "project_id": "qiita-app-170",
+  "measured_at": "2026-07-27T12:25:51.821995+00:00",
+  "monthly_totals": {
+    "request_count": 148.0,
+    "cpu_seconds": 417.8480455765372
+  },
+  "actions": {
+    "page_view": {
+      "name": "記事閲覧 (1 Page View)",
+      "cpu_seconds": 2.823,
+      "gcs_read_ops": 2,
+      "request_count": 1
+    },
+    "post_creation": {
+      "name": "記事投稿 (1 Post Creation + Gemini AI画像生成)",
+      "cpu_seconds": 0.35,
+      "gcs_write_ops": 2,
+      "gemini_images": 1,
+      "request_count": 1
+    }
+  }
+}

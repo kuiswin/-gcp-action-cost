@@ -1,0 +1,10 @@
+{
+  "project_id": "qiita-app-170",
+  "page_view_cost_jpy": 0.0051059808600000004,
+  "post_creation_cost_jpy": 6.002221987,
+  "monthly_totals": {
+    "request_count": 148.0,
+    "cpu_seconds": 417.8480455765372,
+    "total_infrastructure_cost_jpy": 0.7374099307917005
+  }
+}
