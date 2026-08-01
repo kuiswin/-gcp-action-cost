@@ -73,7 +73,7 @@ def run_step(step_num, project_id=None, extra_env=None):
 
         try:
             req = urllib.request.Request(raw_url, headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"})
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 code = resp.read().decode("utf-8")
                 
             with open(tmp_file, "w", encoding="utf-8") as f:
