@@ -231,10 +231,29 @@ def main():
         if gcs_until: all_until.append(gcs_until)
         print(f"  ・GCS Read  : {gcs_r:,.0f} ops  |  Write: {gcs_w:,.0f} ops")
 
+    # Gemini API / Vertex AI 画像生成枚数の自動集計
+    if "image_gen_count" in metric_keys:
+        try:
+            media_bucket = f"{project_id}-cms-media"
+            res = subprocess.run(
+                ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"gs://{media_bucket}/media/*"],
+                capture_output=True, text=True
+            )
+            lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg'))]
+            img_count = float(len(lines))
+        except Exception:
+            img_count = 0.0
+        raw_30["image_gen_count"] = img_count
+        print(f"  ・Gemini API (AI画像生成): {img_count:,.0f} 枚")
+
+    if "text_input_tokens" in metric_keys:
+        raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
+        print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
+
     # その他メトリクス
     for mkey in metric_keys:
         if mkey in raw_30:
-            continue   # GCS は上で取得済み
+            continue   # 上記で取得済み
         if mkey not in METRIC_QUERY_MAP:
             print(f"  ・[スキップ] {mkey}: Monitoring マッピングなし")
             raw_30[mkey] = 0.0

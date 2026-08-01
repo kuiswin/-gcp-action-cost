@@ -1,0 +1,16 @@
+{
+  "saved_at": "2026-07-27T15:07:19.077874+00:00",
+  "project_id": "qiita-app-170",
+  "data_since": "2026-07-27T15:03:00.001Z",
+  "data_until": "2026-07-27T15:04:00Z",
+  "raw_30d": {
+    "window_minutes": 43200,
+    "gcs_read_ops": 40.0,
+    "gcs_write_ops": 0.0,
+    "query_tb_scanned": 0.0,
+    "image_gen_count": 0.0,
+    "cpu_seconds": 21.02,
+    "text_input_tokens": 0.0,
+    "request_count": 20.0
+  }
+}
