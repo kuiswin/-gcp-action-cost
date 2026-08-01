@@ -112,7 +112,7 @@ def save_snapshot(usage_delta_file):
     }
     with open(SNAP_FILE, "w", encoding="utf-8") as f:
         json.dump(snap, f, indent=2, ensure_ascii=False)
-    print(f"\n💾 スナップショット保存 (RRDTool カウンター基準点): {SNAP_FILE}")
+    print(f"\n💾 スナップショット保存 (カウンター基準点): {SNAP_FILE}")
 
 
 def main():

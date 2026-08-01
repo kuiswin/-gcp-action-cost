@@ -307,15 +307,15 @@ def main():
         print(f"  ・{mkey}: {used_str}")
 
 
-    # RRDTool Counter Delta 差分計算 (snap_mode 時は Point B - Point A のカウンター差分を適用)
+    # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
     eval_30 = {}
     if snap_mode and snap_raw:
-        print("\n  [RRDTool 方式] 前回スナップショット (Point A) とのカウンター差分を計算中...")
+        print("\n  [カウンター増分方式] 前回スナップショット (Point A) との増分を計算中...")
         for mkey, val_b in raw_30.items():
             val_a = float(snap_raw.get(mkey, 0.0))
             diff_val = max(0.0, val_b - val_a)
             eval_30[mkey] = diff_val
-            print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 差分 {diff_val:,.2f}")
+            print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 増分 {diff_val:,.2f}")
     else:
         eval_30 = raw_30.copy()
 
