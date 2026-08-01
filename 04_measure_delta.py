@@ -252,13 +252,13 @@ def main():
 
     fetch_kwargs = {"since_time": snap_since} if snap_mode else {"days": 30}
 
-    # スナップモード時のベースライン読み込み
+    # スナップモード時のベースライン読み込み (RRDTool カウンターデンプ方式)
     snap_raw_json = os.environ.get("COST_SNAP_RAW", "")
     snap_raw = json.loads(snap_raw_json) if snap_raw_json else {}
 
     # GCS は read/write をまとめて1回のAPIで取得
     if "gcs_read_ops" in metric_keys or "gcs_write_ops" in metric_keys:
-        gcs_r, gcs_w, gcs_since, gcs_until = query_gcs_ops(project_id, token, **fetch_kwargs)
+        gcs_r, gcs_w, gcs_since, gcs_until = query_gcs_ops(project_id, token, days=30)
         raw_30["gcs_read_ops"]  = gcs_r
         raw_30["gcs_write_ops"] = gcs_w
         if gcs_since: all_since.append(gcs_since)
@@ -278,28 +278,20 @@ def main():
         except Exception:
             total_img = 0.0
 
-        if snap_mode:
-            # snap_raw に保存されている前回の全画像枚数 (total_image_count) を基準点とする
-            baseline_img = float(snap_raw.get("total_image_count", snap_raw.get("image_gen_count", 0.0)))
-            img_count = max(0.0, total_img - baseline_img)
-        else:
-            img_count = total_img
-
-        raw_30["image_gen_count"] = img_count
-        raw_30["total_image_count"] = total_img
-        print(f"  ・Gemini API (AI画像生成): {img_count:,.0f} 枚")
+        raw_30["image_gen_count"] = total_img
+        print(f"  ・Gemini API (AI画像生成): {total_img:,.0f} 枚")
 
     if "text_input_tokens" in metric_keys:
         raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
         print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
 
 
-    # その他メトリクス
+    # その他メトリクス (常に過去30日間の生カウンターを取得)
     for mkey in metric_keys:
         if mkey in raw_30:
             continue   # 上記で取得済み
         if mkey not in METRIC_QUERY_MAP:
-            val, m_since, m_until = query_generic_api_count(project_id, token, **fetch_kwargs)
+            val, m_since, m_until = query_generic_api_count(project_id, token, days=30)
             raw_30[mkey] = val
             if m_since: all_since.append(m_since)
             if m_until: all_until.append(m_until)
@@ -307,12 +299,25 @@ def main():
             print(f"  ・[汎用自動計測] {mkey}: {used_str}")
             continue
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, **fetch_kwargs)
+        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30)
         raw_30[mkey] = val
         if m_since: all_since.append(m_since)
         if m_until: all_until.append(m_until)
         used_str = f"{val:,.4f}" if val else "0 (未使用)"
         print(f"  ・{mkey}: {used_str}")
+
+
+    # RRDTool Counter Delta 差分計算 (snap_mode 時は Point B - Point A のカウンター差分を適用)
+    eval_30 = {}
+    if snap_mode and snap_raw:
+        print("\n  [RRDTool 方式] 前回スナップショット (Point A) とのカウンター差分を計算中...")
+        for mkey, val_b in raw_30.items():
+            val_a = float(snap_raw.get(mkey, 0.0))
+            diff_val = max(0.0, val_b - val_a)
+            eval_30[mkey] = diff_val
+            print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 差分 {diff_val:,.2f}")
+    else:
+        eval_30 = raw_30.copy()
 
 
     # 時間窓の定義 (分数)
@@ -324,12 +329,12 @@ def main():
         "30_days":    43200,
     }
 
-    # 各時間窓にスケール
+    # 各時間窓にスケール (eval_30 の差分値をベースにコスト評価)
     time_matrix = {}
     for label, minutes in WINDOWS.items():
         scale  = minutes / 43200.0      # 43200 = 30日×24時間×60分
         entry  = {"window_minutes": minutes}
-        for mkey, val_30 in raw_30.items():
+        for mkey, val_30 in eval_30.items():
             scaled = val_30 * scale
             # 桁数に応じた丸め
             if minutes <= 10:
@@ -366,6 +371,7 @@ def main():
         "data_since":           data_since,
         "data_until":           data_until,
         "actual_days_measured": actual_days,
+        "raw_30_counters":      raw_30,
         "time_matrix":          time_matrix,
     }
 
