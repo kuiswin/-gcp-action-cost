@@ -164,6 +164,36 @@ def query_gcs_ops(project_id, token, days=30, since_time=None):
     return read_total, write_total, since, until
 
 
+def query_generic_api_count(project_id, token, days=30, since_time=None):
+    """未知のGCPサービスが増えても、汎用API消費量メトリクスから自動集計するユニバーサルフォールバック"""
+    now      = datetime.now(timezone.utc)
+    end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = since_time if since_time else (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
+    
+    filter_expr = 'metric.type="servicer.googleapis.com/service/request_count"'
+    params = urllib.parse.urlencode({
+        "filter":             filter_expr,
+        "interval.startTime": start_time,
+        "interval.endTime":   end_time,
+    })
+    url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
+    try:
+        data = fetch_json(url, token)
+        total = 0.0
+        since = until = None
+        for ts in data.get("timeSeries", []):
+            for p in ts.get("points", []):
+                val = int(p["value"].get("int64Value", 0)) + float(p["value"].get("doubleValue", 0))
+                total += val
+                t_start = p.get("interval", {}).get("startTime")
+                t_end   = p.get("interval", {}).get("endTime")
+                if t_start and (since is None or t_start < since): since = t_start
+                if t_end   and (until is None or t_end   > until): until = t_end
+        return total, since, until
+    except Exception:
+        return 0.0, None, None
+
+
 def scale_matrix(value_30, windows):
     """30日合計値を各時間窓にスケールして辞書で返す。"""
     per_day  = value_30 / 30.0
@@ -250,13 +280,18 @@ def main():
         raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
         print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
 
+
     # その他メトリクス
     for mkey in metric_keys:
         if mkey in raw_30:
             continue   # 上記で取得済み
         if mkey not in METRIC_QUERY_MAP:
-            print(f"  ・[スキップ] {mkey}: Monitoring マッピングなし")
-            raw_30[mkey] = 0.0
+            val, m_since, m_until = query_generic_api_count(project_id, token, **fetch_kwargs)
+            raw_30[mkey] = val
+            if m_since: all_since.append(m_since)
+            if m_until: all_until.append(m_until)
+            used_str = f"{val:,.4f}" if val else "0 (未使用)"
+            print(f"  ・[汎用自動計測] {mkey}: {used_str}")
             continue
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
         val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, **fetch_kwargs)
