@@ -93,26 +93,40 @@ def run_step(step_num, project_id=None, extra_env=None):
             print(f"❌ GitHubからのステップ読み込みに失敗しました ({raw_url}): {e}", file=sys.stderr)
             return False
 
+SNAP_DIR  = os.path.join(os.path.abspath(".data"), "snapshots")
 SNAP_FILE = os.path.join(os.path.abspath(".data"), "snapshot.json")
 
 
 def save_snapshot(usage_delta_file):
-    """usage_delta.json の raw_30_counters (生カウンター累積値) をスナップショットとして保存する。"""
+    """生カウンター累積値をタイムスタンプ付きスナップショットファイルとして保存する。"""
     if not os.path.exists(usage_delta_file):
         return
     with open(usage_delta_file, "r", encoding="utf-8") as f:
         delta = json.load(f)
+
+    os.makedirs(SNAP_DIR, exist_ok=True)
+    now_dt = datetime.now(timezone.utc)
+    ts_str = now_dt.strftime("%Y%m%d_%H%M%S")
+    snap_filename = f"snap_{ts_str}.json"
+    snap_filepath = os.path.join(SNAP_DIR, snap_filename)
+
     raw_counters = delta.get("raw_30_counters") or delta.get("time_matrix", {}).get("30_days", {})
     snap = {
-        "saved_at":      delta.get("measured_at"),
-        "project_id":    delta.get("project_id"),
-        "data_since":    delta.get("data_since"),
-        "data_until":    delta.get("data_until"),
-        "raw_30d":       raw_counters,
+        "snapshot_filename": snap_filename,
+        "saved_at_utc":      delta.get("measured_at"),
+        "project_id":        delta.get("project_id"),
+        "raw_counters":      raw_counters,
     }
-    with open(SNAP_FILE, "w", encoding="utf-8") as f:
+
+    # 履歴フォルダ (.data/snapshots/) へ保存
+    with open(snap_filepath, "w", encoding="utf-8") as f:
         json.dump(snap, f, indent=2, ensure_ascii=False)
-    print(f"\n💾 スナップショット保存 (カウンター基準点): {SNAP_FILE}")
+
+    # 基準点ショートカット (.data/snapshot.json) を最新値で更新
+    with open(SNAP_FILE, "w", encoding="utf-8") as f:
+        json.dump({"saved_at": delta.get("measured_at"), "project_id": delta.get("project_id"), "raw_30d": raw_counters}, f, indent=2, ensure_ascii=False)
+
+    print(f"\n💾 スナップショット保存完了: .data/snapshots/{snap_filename}")
 
 
 def main():

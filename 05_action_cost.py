@@ -82,6 +82,8 @@ def main():
     # --------------------------------------------------------------------------
     free_tier_rows = []
     billed_total   = 0.0
+    is_snap = bool(os.environ.get("COST_SNAP_SINCE", ""))
+    val_key = "操作増分 (Diff)" if is_snap else "30日累計消費量"
 
     for metric_key, value_30 in m30.items():
         if metric_key == "window_minutes":
@@ -106,7 +108,7 @@ def main():
             billed_total += billed
             row = {
                 "リソース":         label,
-                "30日消費量":       fmt_val(value_30, unit),
+                val_key:            fmt_val(value_30, unit),
                 "無料枠上限":       free_display,
                 "無料枠残量":       fmt_val(rem, unit),
                 "残量率":           f"{pct_rem:.2f}%",
@@ -118,7 +120,7 @@ def main():
             billed_total += billed
             row = {
                 "リソース":         label,
-                "30日消費量":       fmt_val(value_30, unit),
+                val_key:            fmt_val(value_30, unit),
                 "無料枠上限":       free_display,
                 "無料枠残量":       "従量制枠なし",
                 "残量率":           "N/A",
@@ -128,7 +130,8 @@ def main():
 
         free_tier_rows.append(row)
 
-    print("\n【表①: 既定のGCP公式無料枠 (Always Free) からの引き算明細 (過去30日間)】")
+    table_title = "【表①: 操作前後の増分コスト (Diff) 明細】" if is_snap else "【表①: 既定のGCP公式無料枠 (Always Free) からの引き算明細 (過去30日間)】"
+    print(f"\n{table_title}")
     print(json.dumps(free_tier_rows, ensure_ascii=False, indent=2))
 
     if billed_total == 0:
