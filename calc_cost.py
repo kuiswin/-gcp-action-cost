@@ -118,10 +118,12 @@ def main():
     parser = argparse.ArgumentParser(description="GCP Action Cost Profiler (All-in-One CLI)")
     parser.add_argument("--step",    type=int, choices=[1, 2, 3, 4, 5], help="指定したステップのみ実行 (1-5)")
     parser.add_argument("--project", help="GCP Project ID")
-    parser.add_argument("--snap",    action="store_true",
+    parser.add_argument("-s", "--snap", action="store_true",
                         help="スナップショットモード: 前回スナップあり→差分表示、なし→通常30日集計+スナップ保存")
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    if "-s" in unknown or "--snap" in unknown:
+        args.snap = True
 
     if args.step:
         print(f"🚀 Step {args.step} を実行します...")
