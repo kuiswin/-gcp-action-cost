@@ -252,6 +252,10 @@ def main():
 
     fetch_kwargs = {"since_time": snap_since} if snap_mode else {"days": 30}
 
+    # スナップモード時のベースライン読み込み
+    snap_raw_json = os.environ.get("COST_SNAP_RAW", "")
+    snap_raw = json.loads(snap_raw_json) if snap_raw_json else {}
+
     # GCS は read/write をまとめて1回のAPIで取得
     if "gcs_read_ops" in metric_keys or "gcs_write_ops" in metric_keys:
         gcs_r, gcs_w, gcs_since, gcs_until = query_gcs_ops(project_id, token, **fetch_kwargs)
@@ -270,9 +274,16 @@ def main():
                 capture_output=True, text=True
             )
             lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg'))]
-            img_count = float(len(lines))
+            total_img = float(len(lines))
         except Exception:
-            img_count = 0.0
+            total_img = 0.0
+
+        if snap_mode:
+            baseline_img = float(snap_raw.get("image_gen_count", 0.0))
+            img_count = max(0.0, total_img - baseline_img)
+        else:
+            img_count = total_img
+
         raw_30["image_gen_count"] = img_count
         print(f"  ・Gemini API (AI画像生成): {img_count:,.0f} 枚")
 
