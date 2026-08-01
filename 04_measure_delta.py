@@ -279,12 +279,14 @@ def main():
             total_img = 0.0
 
         if snap_mode:
-            baseline_img = float(snap_raw.get("image_gen_count", 0.0))
+            # snap_raw に保存されている前回の全画像枚数 (total_image_count) を基準点とする
+            baseline_img = float(snap_raw.get("total_image_count", snap_raw.get("image_gen_count", 0.0)))
             img_count = max(0.0, total_img - baseline_img)
         else:
             img_count = total_img
 
         raw_30["image_gen_count"] = img_count
+        raw_30["total_image_count"] = total_img
         print(f"  ・Gemini API (AI画像生成): {img_count:,.0f} 枚")
 
     if "text_input_tokens" in metric_keys:
