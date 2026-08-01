@@ -351,11 +351,10 @@ def main():
     data_since = min(all_since) if all_since else None
     data_until = max(all_until) if all_until else None
     if data_since and data_until:
-        from datetime import datetime as dt
         fmt = "%Y-%m-%dT%H:%M:%S"
         try:
-            t0 = dt.strptime(data_since[:19], fmt)
-            t1 = dt.strptime(data_until[:19], fmt)
+            t0 = datetime.strptime(data_since[:19], fmt)
+            t1 = datetime.strptime(data_until[:19], fmt)
             actual_days = round((t1 - t0).total_seconds() / 86400, 1)
         except Exception:
             actual_days = None
