@@ -97,21 +97,22 @@ SNAP_FILE = os.path.join(os.path.abspath(".data"), "snapshot.json")
 
 
 def save_snapshot(usage_delta_file):
-    """usage_delta.json の time_matrix[30_days] をスナップショットとして保存する。"""
+    """usage_delta.json の raw_30_counters (生カウンター累積値) をスナップショットとして保存する。"""
     if not os.path.exists(usage_delta_file):
         return
     with open(usage_delta_file, "r", encoding="utf-8") as f:
         delta = json.load(f)
+    raw_counters = delta.get("raw_30_counters") or delta.get("time_matrix", {}).get("30_days", {})
     snap = {
         "saved_at":      delta.get("measured_at"),
         "project_id":    delta.get("project_id"),
         "data_since":    delta.get("data_since"),
         "data_until":    delta.get("data_until"),
-        "raw_30d":       delta.get("time_matrix", {}).get("30_days", {}),
+        "raw_30d":       raw_counters,
     }
     with open(SNAP_FILE, "w", encoding="utf-8") as f:
         json.dump(snap, f, indent=2, ensure_ascii=False)
-    print(f"\n💾 スナップショット保存: {SNAP_FILE}")
+    print(f"\n💾 スナップショット保存 (RRDTool カウンター基準点): {SNAP_FILE}")
 
 
 def main():
