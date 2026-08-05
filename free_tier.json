@@ -65,6 +65,17 @@
           "free_limit_display": "1 TB/月"
         }
       }
+    },
+    "cloud_spanner": {
+      "metrics": {
+        "spanner_node_hours": {
+          "label": "Cloud Spanner Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
     }
   }
 }

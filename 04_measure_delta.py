@@ -112,6 +112,11 @@ METRIC_QUERY_MAP = {
         "bigquery.googleapis.com/storage/stored_bytes",
         "bigquery_dataset",
     ),
+    # Cloud Spanner
+    "spanner_node_hours": (
+        "spanner.googleapis.com/instance/node_count",
+        "spanner_instance",
+    ),
 }
 
 # GCS は read/write を method ラベルで区別する必要があるため別途フィルタ
