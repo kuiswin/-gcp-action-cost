@@ -98,6 +98,10 @@ def main():
         },
         "artifact_registry": {
             "storage_per_gb_month_jpy": 0.10 * usd_jpy_rate
+        },
+        "cloud_spanner": {
+            "node_per_hour_jpy": 1.50 * usd_jpy_rate,
+            "pu_100_per_hour_jpy": 0.15 * usd_jpy_rate
         }
     }
 

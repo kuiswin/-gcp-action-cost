@@ -88,6 +88,7 @@ def main():
         "cloudfunctions.googleapis.com":       ("Cloud Functions",       "cloud_functions"),
         "secretmanager.googleapis.com":        ("Secret Manager",        "secret_manager"),
         "artifactregistry.googleapis.com":     ("Artifact Registry",     "artifact_registry"),
+        "spanner.googleapis.com":              ("Cloud Spanner",         "cloud_spanner"),
     }
 
     target_unit_prices = {}
