@@ -95,7 +95,7 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
         return 0.0, None, None
 
 def query_provisioned_node_hours(project_id, token, metric_type, days=30):
-    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を 1時間 ALIGN_MEAN 集計で正確算出"""
+    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を生の分単位時系列ログから精密算出"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
@@ -104,25 +104,26 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
         "filter": f'metric.type="{metric_type}"',
         "interval.startTime": start_time,
         "interval.endTime": end_time,
-        "aggregation.alignmentPeriod": "3600s",
-        "aggregation.perSeriesAligner": "ALIGN_MEAN"
     })
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
     try:
         data = fetch_json(url, token)
-        total_hours = 0.0
+        total_sample_minutes = 0.0
         since, until = None, None
         for ts in data.get("timeSeries", []):
             for p in ts.get("points", []):
                 v = p.get("value", {})
                 val = float(v.get("doubleValue") or v.get("int64Value", 0))
                 if val > 0:
-                    total_hours += val
+                    total_sample_minutes += val  # 毎分サンプルのノード数合計
                     t_start = p.get("interval", {}).get("startTime")
                     t_end   = p.get("interval", {}).get("endTime")
                     if t_start and (since is None or t_start < since): since = t_start
                     if t_end   and (until is None or t_end   > until): until = t_end
-        return total_hours, since, until
+        
+        # 分単位ノード数を60分で割って精密ノード時間に変換 (例: 208分 / 60 = 3.47ノード時間)
+        exact_node_hours = total_sample_minutes / 60.0
+        return exact_node_hours, since, until
     except Exception:
         return 0.0, None, None
 
