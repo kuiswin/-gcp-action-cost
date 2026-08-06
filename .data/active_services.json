@@ -1,6 +1,8 @@
 {
   "project_id": "ferrous-iridium-286000",
   "total_count": 8,
+  "core_services_count": 0,
+  "infra_apis_count": 8,
   "active_services": [
     {
       "service_name": "Gemini for Google Cloud API",
