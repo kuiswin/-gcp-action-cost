@@ -1,27 +1,168 @@
 {
   "project_id": "ferrous-iridium-286000",
-  "free_tier_subtractions_30days": [],
+  "free_tier_subtractions_30days": [
+    {
+      "リソース": "Cloud Storage Read",
+      "操作増分 (Diff)": "317 回",
+      "無料枠上限": "50,000 回/月",
+      "無料枠残量": "49,683 回",
+      "残量率": "99.37%",
+      "超過消費量": "0 回",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Storage Write",
+      "操作増分 (Diff)": "94 回 (経過 157秒)",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "94 回",
+      "確定請求": "￥0.0729"
+    },
+    {
+      "リソース": "Gemini API (AI画像生成)",
+      "操作増分 (Diff)": "0 枚 (経過 157秒)",
+      "無料枠上限": "従量制 ($0.040/枚)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 枚",
+      "確定請求": "￥0 (未使用)"
+    },
+    {
+      "リソース": "Gemini API (テキスト入力)",
+      "操作増分 (Diff)": "0 1kトークン (経過 157秒)",
+      "無料枠上限": "従量制",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 1kトークン",
+      "確定請求": "￥0 (未使用)"
+    },
+    {
+      "リソース": "Cloud Bigtable Node",
+      "操作増分 (Diff)": "0 ノード時間 (経過 157秒)",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 ノード時間",
+      "確定請求": "￥0 (未使用)"
+    },
+    {
+      "リソース": "AlloyDB vCPU",
+      "操作増分 (Diff)": "0 vCPU時間 (経過 157秒)",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 vCPU時間",
+      "確定請求": "￥0 (未使用)"
+    },
+    {
+      "リソース": "BigQuery クエリ",
+      "操作増分 (Diff)": "0 TB",
+      "無料枠上限": "1 TB/月",
+      "無料枠残量": "1 TB",
+      "残量率": "100.00%",
+      "超過消費量": "0 TB",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Run CPU",
+      "操作増分 (Diff)": "0 vCPU秒",
+      "無料枠上限": "180,000 vCPU秒/月",
+      "無料枠残量": "180,000 vCPU秒",
+      "残量率": "100.00%",
+      "超過消費量": "0 vCPU秒",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Run Request",
+      "操作増分 (Diff)": "0 回",
+      "無料枠上限": "2,000,000 回/月",
+      "無料枠残量": "2,000,000 回",
+      "残量率": "100.00%",
+      "超過消費量": "0 回",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Spanner Node",
+      "操作増分 (Diff)": "0 ノード時間 (経過 157秒)",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 ノード時間",
+      "確定請求": "￥0 (未使用)"
+    }
+  ],
   "time_matrix": {
     "1_minute": {
-      "gross_cost_jpy": 0.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "gcs_read_ops": 0.0073,
+      "gcs_write_ops": 0.0022,
+      "spanner_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "bigtable_node_hours": 0.0,
+      "gross_cost_jpy": 2e-06,
       "net_billed_jpy": 0.0
     },
     "10_minutes": {
-      "gross_cost_jpy": 0.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "gcs_read_ops": 0.0734,
+      "gcs_write_ops": 0.0218,
+      "spanner_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "bigtable_node_hours": 0.0,
+      "gross_cost_jpy": 2.1e-05,
       "net_billed_jpy": 0.0
     },
     "1_hour": {
-      "gross_cost_jpy": 0.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "gcs_read_ops": 0.44,
+      "gcs_write_ops": 0.13,
+      "spanner_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "bigtable_node_hours": 0.0,
+      "gross_cost_jpy": 0.000128,
       "net_billed_jpy": 0.0
     },
     "1_day": {
-      "gross_cost_jpy": 0.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "gcs_read_ops": 10.6,
+      "gcs_write_ops": 3.1,
+      "spanner_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "bigtable_node_hours": 0.0,
+      "gross_cost_jpy": 0.00306,
       "net_billed_jpy": 0.0
     },
     "30_days": {
-      "gross_cost_jpy": 0.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "gcs_read_ops": 317.0,
+      "gcs_write_ops": 94.0,
+      "spanner_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "bigtable_node_hours": 0.0,
+      "gross_cost_jpy": 0.092504,
       "net_billed_jpy": 0.0
     }
   },
-  "total_billed_jpy": 0.0
+  "total_billed_jpy": 0.07285
 }

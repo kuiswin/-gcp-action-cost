@@ -96,28 +96,31 @@ def main():
 
     target_unit_prices = {}
     matched_services   = []
+    active_api_set     = {srv.get("api_name", "") for srv in active_list}
 
     print(f"・対象プロジェクトID: {project_id}")
-    print(f"・検出有効サービス数: {len(active_list)} 件 (自動判別バインド実行中)")
+    print(f"・検出有効サービス数: {len(active_list)} 件 (適用単価バインド実行中)")
 
-    for srv in active_list:
-        api_name = srv.get("api_name", "")
-        if api_name in api_map:
-            display_name, master_key = api_map[api_name]
-            if master_key not in target_unit_prices:
-                prices = master_prices.get(master_key, master_prices.get(display_name, {}))
-                if prices:
-                    entry = {
-                        "display_name": display_name,
-                        "unit_prices":  prices,
-                    }
-                    # 無料枠情報があれば同梱
-                    if master_key in free_tier_map:
-                        entry["free_tier_metrics"] = free_tier_map[master_key].get("metrics", {})
+    # free_tier_map および api_map の全コアサービスをロード
+    all_master_keys = set(free_tier_map.keys()).union({master_key for _, master_key in api_map.values()})
 
-                    target_unit_prices[master_key] = entry
-                    matched_services.append(display_name)
-                    print(f"  ・[✓ 自動バインド] {display_name} ({api_name})")
+    # 逆引きマップ (master_key -> display_name)
+    key_to_display = {master_key: display_name for display_name, master_key in api_map.values()}
+
+    for master_key in all_master_keys:
+        display_name = key_to_display.get(master_key, master_key.replace("_", " ").title())
+        prices = master_prices.get(master_key, master_prices.get(display_name, {}))
+
+        # 単価が存在しない場合でもデフォルトフリーティア枠があれば読み込み
+        entry = {
+            "display_name": display_name,
+            "unit_prices":  prices if isinstance(prices, dict) else {},
+        }
+        if master_key in free_tier_map:
+            entry["free_tier_metrics"] = free_tier_map[master_key].get("metrics", {})
+
+        target_unit_prices[master_key] = entry
+        matched_services.append(display_name)
 
     target_pricing = {
         "project_id":            project_id,
@@ -129,7 +132,7 @@ def main():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(target_pricing, f, indent=2, ensure_ascii=False)
 
-    print(f"✓ プロジェクトで動的に検出された {len(matched_services)} サービスの適用単価表を自動生成しました。")
+    print(f"✓ 追跡対象 {len(matched_services)} サービスの適用単価・メトリクス定義をマスター結合しました。")
     print(f"💾 保持ファイル: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
