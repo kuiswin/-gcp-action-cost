@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "description": "GCP Service Metrics & Provisioning Rules Configuration",
+  "metrics_map": {
+    "request_count": {
+      "metric_type": "run.googleapis.com/request_count",
+      "resource_type": "cloud_run_revision",
+      "category": "metered"
+    },
+    "cpu_seconds": {
+      "metric_type": "run.googleapis.com/container/cpu/allocation_time",
+      "resource_type": "cloud_run_revision",
+      "category": "metered"
+    },
+    "gcs_read_ops": {
+      "metric_type": "storage.googleapis.com/api/request_count",
+      "resource_type": "gcs_bucket",
+      "category": "metered"
+    },
+    "gcs_write_ops": {
+      "metric_type": "storage.googleapis.com/api/request_count",
+      "resource_type": "gcs_bucket",
+      "category": "metered"
+    },
+    "query_tb_scanned": {
+      "metric_type": "bigquery.googleapis.com/storage/stored_bytes",
+      "resource_type": "bigquery_dataset",
+      "category": "metered"
+    },
+    "spanner_node_hours": {
+      "metric_type": "spanner.googleapis.com/instance/node_count",
+      "resource_type": "spanner_instance",
+      "category": "provisioned",
+      "gcloud_provider": "spanner"
+    },
+    "bigtable_node_hours": {
+      "metric_type": "bigtable.googleapis.com/server/node_count",
+      "fallback_metric_type": "bigtable.googleapis.com/cluster/node_count",
+      "resource_type": "bigtable_cluster",
+      "category": "provisioned",
+      "gcloud_provider": "bigtable"
+    },
+    "alloydb_cpu_hours": {
+      "metric_type": "alloydb.googleapis.com/instance/cpu/usage_time",
+      "resource_type": "alloydb_instance",
+      "category": "provisioned",
+      "gcloud_provider": "alloydb"
+    }
+  },
+  "provisioned_services": [
+    "bigtable_node_hours",
+    "spanner_node_hours",
+    "alloydb_cpu_hours"
+  ]
+}

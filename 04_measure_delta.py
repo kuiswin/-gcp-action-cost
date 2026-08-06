@@ -84,49 +84,40 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
         return 0.0, None, None
 
 
-# -----------------------------------------------------------------------
-# metric_key → (Monitoring metric_type, resource_type) の対応テーブル
-# free_tier.json の metric_key と一致させる
-# -----------------------------------------------------------------------
+SERVICE_RULES_FILE = os.path.join(DATA_DIR, "..", "service_rules.json")
+if not os.path.exists(SERVICE_RULES_FILE):
+    SERVICE_RULES_FILE = os.path.join(DATA_DIR, "service_rules.json")
+
+def load_service_rules():
+    """service_rules.json からメトリクスルール定義を取得する。ファイル不在時はデフォルトテーブルにフォールバック"""
+    rules_path = os.path.abspath(SERVICE_RULES_FILE)
+    if os.path.exists(rules_path):
+        try:
+            with open(rules_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "metrics_map": {
+            "request_count": {"metric_type": "run.googleapis.com/request_count", "resource_type": "cloud_run_revision"},
+            "cpu_seconds": {"metric_type": "run.googleapis.com/container/cpu/allocation_time", "resource_type": "cloud_run_revision"},
+            "gcs_read_ops": {"metric_type": "storage.googleapis.com/api/request_count", "resource_type": "gcs_bucket"},
+            "gcs_write_ops": {"metric_type": "storage.googleapis.com/api/request_count", "resource_type": "gcs_bucket"},
+            "query_tb_scanned": {"metric_type": "bigquery.googleapis.com/storage/stored_bytes", "resource_type": "bigquery_dataset"},
+            "spanner_node_hours": {"metric_type": "spanner.googleapis.com/instance/node_count", "resource_type": "spanner_instance", "category": "provisioned"},
+            "bigtable_node_hours": {"metric_type": "bigtable.googleapis.com/server/node_count", "fallback_metric_type": "bigtable.googleapis.com/cluster/node_count", "resource_type": "bigtable_cluster", "category": "provisioned"},
+            "alloydb_cpu_hours": {"metric_type": "alloydb.googleapis.com/instance/cpu/usage_time", "resource_type": "alloydb_instance", "category": "provisioned"}
+        },
+        "provisioned_services": ["bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"]
+    }
+
+SERVICE_RULES = load_service_rules()
+METRICS_MAP = SERVICE_RULES.get("metrics_map", {})
+PROVISIONED_SERVICES = set(SERVICE_RULES.get("provisioned_services", []))
+
 METRIC_QUERY_MAP = {
-    # Cloud Run
-    "request_count": (
-        "run.googleapis.com/request_count",
-        "cloud_run_revision",
-    ),
-    "cpu_seconds": (
-        "run.googleapis.com/container/cpu/allocation_time",
-        "cloud_run_revision",
-    ),
-    # Cloud Storage (GCS operations は storage.googleapis.com メトリクス)
-    "gcs_read_ops": (
-        "storage.googleapis.com/api/request_count",
-        "gcs_bucket",
-    ),
-    "gcs_write_ops": (
-        "storage.googleapis.com/api/request_count",
-        "gcs_bucket",
-    ),
-    # BigQuery
-    "query_tb_scanned": (
-        "bigquery.googleapis.com/storage/stored_bytes",
-        "bigquery_dataset",
-    ),
-    # Cloud Spanner
-    "spanner_node_hours": (
-        "spanner.googleapis.com/instance/node_count",
-        "spanner_instance",
-    ),
-    # Cloud Bigtable
-    "bigtable_node_hours": (
-        "bigtable.googleapis.com/server/node_count",
-        "bigtable_cluster",
-    ),
-    # AlloyDB
-    "alloydb_cpu_hours": (
-        "alloydb.googleapis.com/instance/cpu/usage_time",
-        "alloydb_instance",
-    ),
+    k: (v.get("metric_type"), v.get("resource_type"))
+    for k, v in METRICS_MAP.items()
 }
 
 def check_live_provisioned_nodes(project_id):
@@ -365,8 +356,8 @@ def main():
         if mkey in raw_30:
             continue   # 上記で取得済み
 
-        # プロビジョニング型リソース (Bigtable, Spanner, AlloyDB) の即時検出および過去ログからの補正
-        if mkey in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"):
+        # プロビジョニング型リソースの即時検出および過去ログからの補正
+        if mkey in PROVISIONED_SERVICES:
             live_nodes = check_live_provisioned_nodes(project_id)
             live_cnt = live_nodes.get(mkey, 0.0)
             if live_cnt > 0:
@@ -375,19 +366,20 @@ def main():
                 print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
                 continue
             # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去時系列を取得して補正
-            metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-            val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
-            # Bigtable / Spanner のメトリクスで別名も試行
-            if val == 0.0 and mkey == "bigtable_node_hours":
-                val, m_since, m_until = query_metric(project_id, token, "bigtable.googleapis.com/cluster/node_count", "bigtable_cluster", days=30, since_time=snap_since)
-            raw_30[mkey] = val
-            if m_since: all_since.append(m_since)
-            if m_until: all_until.append(m_until)
-            used_str = f"{val:,.4f}" if val else "0 (未使用/削除済み)"
-            print(f"  ・[Monitoring履歴検出] {mkey}: {used_str}")
-            continue
+            if mkey in METRIC_QUERY_MAP:
+                metric_type, resource_type = METRIC_QUERY_MAP[mkey]
+                val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
+                if val == 0.0 and mkey == "bigtable_node_hours":
+                    val, m_since, m_until = query_metric(project_id, token, "bigtable.googleapis.com/cluster/node_count", "bigtable_cluster", days=30, since_time=snap_since)
+                raw_30[mkey] = val
+                if m_since: all_since.append(m_since)
+                if m_until: all_until.append(m_until)
+                used_str = f"{val:,.4f}" if val else "0 (未使用/削除済み)"
+                print(f"  ・[Monitoring履歴検出] {mkey}: {used_str}")
+                continue
 
         if mkey not in METRIC_QUERY_MAP:
+            print(f"  ⚠️ [未定義サービス検出フォールバック] {mkey}: service_rules.json に未登録のメトリクスです。汎用API件数から仮試算します。")
             val, m_since, m_until = query_generic_api_count(project_id, token, days=30)
             raw_30[mkey] = val
             if m_since: all_since.append(m_since)
@@ -422,7 +414,7 @@ def main():
 
         for mkey, val_b in raw_30.items():
             val_a = float(snap_raw.get(mkey, 0.0))
-            if mkey in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours") and elapsed_hours > 0 and val_b > 0 and val_a > 0:
+            if mkey in PROVISIONED_SERVICES and elapsed_hours > 0 and val_b > 0 and val_a > 0:
                 live_nodes = val_b / 720.0
                 inc_node_hours = live_nodes * elapsed_hours
                 eval_30[mkey] = val_b

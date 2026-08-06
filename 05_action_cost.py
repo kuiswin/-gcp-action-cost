@@ -17,7 +17,22 @@ DATA_DIR            = os.path.abspath(".data")
 TARGET_PRICING_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 USAGE_DELTA_FILE    = os.path.join(DATA_DIR, "usage_delta.json")
 OUTPUT_FILE         = os.path.join(DATA_DIR, "action_cost_result.json")
+SERVICE_RULES_FILE  = os.path.join(DATA_DIR, "..", "service_rules.json")
+if not os.path.exists(SERVICE_RULES_FILE):
+    SERVICE_RULES_FILE = os.path.join(DATA_DIR, "service_rules.json")
 
+def load_provisioned_services():
+    rules_path = os.path.abspath(SERVICE_RULES_FILE)
+    if os.path.exists(rules_path):
+        try:
+            with open(rules_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return set(data.get("provisioned_services", []))
+        except Exception:
+            pass
+    return {"bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"}
+
+PROVISIONED_SERVICES = load_provisioned_services()
 
 def build_metric_catalog(pricing_data):
     """
@@ -102,7 +117,7 @@ def main():
 
         # スナップモード（差分モード）時の継続稼働ノード時間補正
         display_value = value_30
-        if is_snap and metric_key in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours") and snap_elapsed_seconds > 0:
+        if is_snap and metric_key in PROVISIONED_SERVICES and snap_elapsed_seconds > 0:
             live_nodes = value_30 / 720.0
             inc_node_hours = live_nodes * (snap_elapsed_seconds / 3600.0)
             display_value = inc_node_hours
