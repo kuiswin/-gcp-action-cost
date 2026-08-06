@@ -2,35 +2,20 @@
   "project_id": "ferrous-iridium-286000",
   "active_services_count": 8,
   "matched_services": [
-    "AlloyDB",
     "BigQuery",
-    "Cloud Functions",
-    "Gemini API / Vertex AI",
+    "Cloud Storage",
     "Cloud Bigtable",
-    "Cloud Pub/Sub",
     "Artifact Registry",
     "Cloud Spanner",
-    "Cloud Run",
-    "Cloud Storage",
+    "AlloyDB",
+    "Cloud Functions",
+    "Secret Manager",
+    "Cloud Pub/Sub",
     "Compute Engine",
-    "Secret Manager"
+    "Cloud Run",
+    "Gemini API / Vertex AI"
   ],
   "target_unit_prices": {
-    "alloydb": {
-      "display_name": "AlloyDB",
-      "unit_prices": {
-        "vcpu_per_hour_jpy": 10.850000000000001
-      },
-      "free_tier_metrics": {
-        "alloydb_cpu_hours": {
-          "label": "AlloyDB vCPU",
-          "unit": "vCPU時間",
-          "price_key": "vcpu_per_hour_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "無料枠なし (従量課金)"
-        }
-      }
-    },
     "bigquery": {
       "display_name": "BigQuery",
       "unit_prices": {
@@ -47,43 +32,27 @@
         }
       }
     },
-    "cloud_functions": {
-      "display_name": "Cloud Functions",
+    "cloud_storage": {
+      "display_name": "Cloud Storage",
       "unit_prices": {
-        "invocations_per_million_jpy": 62.0,
-        "compute_time_per_gb_sec_jpy": 0.00038750000000000004
+        "class_a_write_per_op_jpy": 0.0007750000000000001,
+        "class_b_read_per_op_jpy": 6.2e-05,
+        "storage_per_gb_month_jpy": 3.1
       },
       "free_tier_metrics": {
-        "function_invocations": {
-          "label": "Cloud Functions 呼び出し",
+        "gcs_read_ops": {
+          "label": "Cloud Storage Read",
           "unit": "回",
-          "price_key": "invocations_per_million_jpy",
-          "free_limit": 2000000.0,
-          "free_limit_display": "2,000,000 回/月"
-        }
-      }
-    },
-    "gemini_api": {
-      "display_name": "Gemini API / Vertex AI",
-      "unit_prices": {
-        "image_generation_per_image_jpy": 6.0,
-        "input_text_per_1k_tokens_jpy": 0.023249999999999996,
-        "output_text_per_1k_tokens_jpy": 0.09299999999999999
-      },
-      "free_tier_metrics": {
-        "image_gen_count": {
-          "label": "Gemini API (AI画像生成)",
-          "unit": "枚",
-          "price_key": "image_generation_per_image_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "従量制 ($0.040/枚)"
+          "price_key": "class_b_read_per_op_jpy",
+          "free_limit": 50000.0,
+          "free_limit_display": "50,000 回/月"
         },
-        "text_input_tokens": {
-          "label": "Gemini API (テキスト入力)",
-          "unit": "1kトークン",
-          "price_key": "input_text_per_1k_tokens_jpy",
+        "gcs_write_ops": {
+          "label": "Cloud Storage Write",
+          "unit": "回",
+          "price_key": "class_a_write_per_op_jpy",
           "free_limit": 0.0,
-          "free_limit_display": "従量制"
+          "free_limit_display": "無料枠なし (従量課金)"
         }
       }
     },
@@ -99,21 +68,6 @@
           "price_key": "node_per_hour_jpy",
           "free_limit": 0.0,
           "free_limit_display": "無料枠なし (従量課金)"
-        }
-      }
-    },
-    "pubsub": {
-      "display_name": "Cloud Pub/Sub",
-      "unit_prices": {
-        "message_ingestion_per_gb_jpy": 6.2
-      },
-      "free_tier_metrics": {
-        "pubsub_message_bytes": {
-          "label": "Cloud Pub/Sub メッセージ転送",
-          "unit": "GB",
-          "price_key": "message_ingestion_per_gb_jpy",
-          "free_limit": 10.0,
-          "free_limit_display": "10 GB/月"
         }
       }
     },
@@ -148,6 +102,84 @@
         }
       }
     },
+    "alloydb": {
+      "display_name": "AlloyDB",
+      "unit_prices": {
+        "vcpu_per_hour_jpy": 10.850000000000001
+      },
+      "free_tier_metrics": {
+        "alloydb_cpu_hours": {
+          "label": "AlloyDB vCPU",
+          "unit": "vCPU時間",
+          "price_key": "vcpu_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "cloud_functions": {
+      "display_name": "Cloud Functions",
+      "unit_prices": {
+        "invocations_per_million_jpy": 62.0,
+        "compute_time_per_gb_sec_jpy": 0.00038750000000000004
+      },
+      "free_tier_metrics": {
+        "function_invocations": {
+          "label": "Cloud Functions 呼び出し",
+          "unit": "回",
+          "price_key": "invocations_per_million_jpy",
+          "free_limit": 2000000.0,
+          "free_limit_display": "2,000,000 回/月"
+        }
+      }
+    },
+    "secret_manager": {
+      "display_name": "Secret Manager",
+      "unit_prices": {
+        "secret_version_month_jpy": 9.299999999999999,
+        "access_per_10k_ops_jpy": 4.6499999999999995
+      },
+      "free_tier_metrics": {
+        "secret_access_ops": {
+          "label": "Secret Manager アクセス",
+          "unit": "10k回",
+          "price_key": "access_per_10k_ops_jpy",
+          "free_limit": 1.0,
+          "free_limit_display": "10,000 オペレーション/月"
+        }
+      }
+    },
+    "pubsub": {
+      "display_name": "Cloud Pub/Sub",
+      "unit_prices": {
+        "message_ingestion_per_gb_jpy": 6.2
+      },
+      "free_tier_metrics": {
+        "pubsub_message_bytes": {
+          "label": "Cloud Pub/Sub メッセージ転送",
+          "unit": "GB",
+          "price_key": "message_ingestion_per_gb_jpy",
+          "free_limit": 10.0,
+          "free_limit_display": "10 GB/月"
+        }
+      }
+    },
+    "compute_engine": {
+      "display_name": "Compute Engine",
+      "unit_prices": {
+        "e2_micro_hour_jpy": 1.3019999999999998,
+        "standard_disk_gb_month_jpy": 6.2
+      },
+      "free_tier_metrics": {
+        "gce_instance_hours": {
+          "label": "Compute Engine (e2-micro)",
+          "unit": "時間",
+          "price_key": "e2_micro_hour_jpy",
+          "free_limit": 744.0,
+          "free_limit_display": "744 時間/月 (1インスタンス分)"
+        }
+      }
+    },
     "cloud_run": {
       "display_name": "Cloud Run",
       "unit_prices": {
@@ -172,59 +204,27 @@
         }
       }
     },
-    "cloud_storage": {
-      "display_name": "Cloud Storage",
+    "gemini_api": {
+      "display_name": "Gemini API / Vertex AI",
       "unit_prices": {
-        "class_a_write_per_op_jpy": 0.0007750000000000001,
-        "class_b_read_per_op_jpy": 6.2e-05,
-        "storage_per_gb_month_jpy": 3.1
+        "image_generation_per_image_jpy": 6.0,
+        "input_text_per_1k_tokens_jpy": 0.023249999999999996,
+        "output_text_per_1k_tokens_jpy": 0.09299999999999999
       },
       "free_tier_metrics": {
-        "gcs_read_ops": {
-          "label": "Cloud Storage Read",
-          "unit": "回",
-          "price_key": "class_b_read_per_op_jpy",
-          "free_limit": 50000.0,
-          "free_limit_display": "50,000 回/月"
-        },
-        "gcs_write_ops": {
-          "label": "Cloud Storage Write",
-          "unit": "回",
-          "price_key": "class_a_write_per_op_jpy",
+        "image_gen_count": {
+          "label": "Gemini API (AI画像生成)",
+          "unit": "枚",
+          "price_key": "image_generation_per_image_jpy",
           "free_limit": 0.0,
-          "free_limit_display": "無料枠なし (従量課金)"
-        }
-      }
-    },
-    "compute_engine": {
-      "display_name": "Compute Engine",
-      "unit_prices": {
-        "e2_micro_hour_jpy": 1.3019999999999998,
-        "standard_disk_gb_month_jpy": 6.2
-      },
-      "free_tier_metrics": {
-        "gce_instance_hours": {
-          "label": "Compute Engine (e2-micro)",
-          "unit": "時間",
-          "price_key": "e2_micro_hour_jpy",
-          "free_limit": 744.0,
-          "free_limit_display": "744 時間/月 (1インスタンス分)"
-        }
-      }
-    },
-    "secret_manager": {
-      "display_name": "Secret Manager",
-      "unit_prices": {
-        "secret_version_month_jpy": 9.299999999999999,
-        "access_per_10k_ops_jpy": 4.6499999999999995
-      },
-      "free_tier_metrics": {
-        "secret_access_ops": {
-          "label": "Secret Manager アクセス",
-          "unit": "10k回",
-          "price_key": "access_per_10k_ops_jpy",
-          "free_limit": 1.0,
-          "free_limit_display": "10,000 オペレーション/月"
+          "free_limit_display": "従量制 ($0.040/枚)"
+        },
+        "text_input_tokens": {
+          "label": "Gemini API (テキスト入力)",
+          "unit": "1kトークン",
+          "price_key": "input_text_per_1k_tokens_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制"
         }
       }
     }
