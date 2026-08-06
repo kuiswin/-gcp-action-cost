@@ -1,22 +1,7 @@
 {
   "project_id": "ferrous-iridium-286000",
-  "total_count": 17,
+  "total_count": 8,
   "active_services": [
-    {
-      "service_name": "Artifact Registry API",
-      "api_name": "artifactregistry.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Bigtable API",
-      "api_name": "bigtable.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Bigtable Admin API",
-      "api_name": "bigtableadmin.googleapis.com",
-      "status": "enabled"
-    },
     {
       "service_name": "Gemini for Google Cloud API",
       "api_name": "cloudaicompanion.googleapis.com",
@@ -30,11 +15,6 @@
     {
       "service_name": "Cloud Resource Manager API",
       "api_name": "cloudresourcemanager.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Container Registry API",
-      "api_name": "containerregistry.googleapis.com",
       "status": "enabled"
     },
     {
@@ -58,33 +38,8 @@
       "status": "enabled"
     },
     {
-      "service_name": "Cloud Pub/Sub API",
-      "api_name": "pubsub.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Run Admin API",
-      "api_name": "run.googleapis.com",
-      "status": "enabled"
-    },
-    {
       "service_name": "Service Usage API",
       "api_name": "serviceusage.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Google Cloud Storage JSON API",
-      "api_name": "storage-api.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Storage",
-      "api_name": "storage-component.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Telemetry API",
-      "api_name": "telemetry.googleapis.com",
       "status": "enabled"
     }
   ]

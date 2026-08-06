@@ -4,6 +4,7 @@ Step 2: GCP Billing Catalog API (cloudbilling.googleapis.com) から
 すべてのGCPサービスのSKU単価データを絞らず完全に網羅取得して .data/pricing_catalog.json に保存
 """
 
+from datetime import datetime, timezone
 import json
 import os
 import subprocess
@@ -26,15 +27,34 @@ def fetch_json(url, token):
 
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
-    token = get_access_token()
-    usd_jpy_rate = 155.0
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    force_refresh = os.environ.get("COST_FORCE_REFRESH") == "1"
 
     print("================================================================================")
     print("【Step 2】 GCP Catalog API 全サービス完全網羅・単価マスターの取得")
     print("================================================================================")
-    print("・GCP Billing Catalog API から全GCPサービス (Services & SKUs) を取得中...")
+
+    # 同日キャッシュの確認（-r / --refresh 指定なし & 同日ファイル存在時）
+    if not force_refresh and os.path.exists(OUTPUT_FILE):
+        try:
+            with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+                cache_data = json.load(f)
+            if cache_data.get("fetched_date") == today_str and cache_data.get("services"):
+                service_count = len(cache_data.get("services", {}))
+                print(f"⚡ 同日キャッシュを使用中 ({today_str}): GCP Catalog API の再取得をスキップします")
+                print(f"✓ キャッシュ済み {service_count} サービスの単価マスターを利用します。")
+                print(f"💾 保持ファイル: {OUTPUT_FILE}")
+                return
+        except Exception:
+            pass
+
+    token = get_access_token()
+    usd_jpy_rate = 155.0
+
+    print("・GCP Billing Catalog API から全GCPサービス (Services & SKUs) を取得中 (本日初回)...")
 
     catalog = {
+        "fetched_date": today_str,
         "currency": "JPY",
         "usd_jpy_rate": usd_jpy_rate,
         "services": {}

@@ -1,57 +1,26 @@
 {
   "project_id": "ferrous-iridium-286000",
-  "measured_at": "2026-08-06T11:56:42.020141+00:00",
-  "snap_elapsed_seconds": 852562.938509,
-  "data_since": "2026-08-01T01:41:00.001Z",
-  "data_until": "2026-08-05T15:35:00Z",
-  "actual_days_measured": 4.6,
-  "raw_30_counters": {
-    "gcs_read_ops": 271.0,
-    "gcs_write_ops": 73.0,
-    "request_count": 5876.0,
-    "cpu_seconds": 6214.332311838986,
-    "bigtable_node_hours": 720.0
-  },
+  "measured_at": "2026-08-06T22:57:01.034092+00:00",
+  "snap_elapsed_seconds": 33.053926,
+  "data_since": null,
+  "data_until": null,
+  "actual_days_measured": null,
+  "raw_30_counters": {},
   "time_matrix": {
     "1_minute": {
-      "window_minutes": 1,
-      "gcs_read_ops": 0.0053,
-      "gcs_write_ops": 0.0017,
-      "request_count": 0.1356,
-      "cpu_seconds": 0.1434,
-      "bigtable_node_hours": 0.0167
+      "window_minutes": 1
     },
     "10_minutes": {
-      "window_minutes": 10,
-      "gcs_read_ops": 0.0535,
-      "gcs_write_ops": 0.0169,
-      "request_count": 1.3556,
-      "cpu_seconds": 1.4336,
-      "bigtable_node_hours": 0.1667
+      "window_minutes": 10
     },
     "1_hour": {
-      "window_minutes": 60,
-      "gcs_read_ops": 0.32,
-      "gcs_write_ops": 0.1,
-      "request_count": 8.13,
-      "cpu_seconds": 8.6,
-      "bigtable_node_hours": 1.0
+      "window_minutes": 60
     },
     "1_day": {
-      "window_minutes": 1440,
-      "gcs_read_ops": 7.7,
-      "gcs_write_ops": 2.4,
-      "request_count": 195.2,
-      "cpu_seconds": 206.4,
-      "bigtable_node_hours": 24.0
+      "window_minutes": 1440
     },
     "30_days": {
-      "window_minutes": 43200,
-      "gcs_read_ops": 231.0,
-      "gcs_write_ops": 73.0,
-      "request_count": 5856.0,
-      "cpu_seconds": 6193.31,
-      "bigtable_node_hours": 720.0
+      "window_minutes": 43200
     }
   }
 }
