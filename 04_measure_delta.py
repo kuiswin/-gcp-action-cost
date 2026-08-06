@@ -21,6 +21,17 @@ SERVICES_FILE    = os.path.join(DATA_DIR, "active_services.json")
 TARGET_PRICING_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 OUTPUT_FILE      = os.path.join(DATA_DIR, "usage_delta.json")
 
+def to_jst_str(iso_str):
+    """UTC ISO日時文字列を日本時間 (JST, +09:00) の読みやすいフォーマットに変換"""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        jst_dt = dt.astimezone(timezone(timedelta(hours=9)))
+        return jst_dt.strftime("%Y-%m-%d %H:%M:%S JST")
+    except Exception:
+        return iso_str
+
 def get_access_token():
     res = subprocess.run(
         ["/root/google-cloud-sdk/bin/gcloud", "auth", "print-access-token"],
@@ -80,6 +91,38 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
                 if t_end   and (until is None or t_end   > until):
                     until = t_end
         return total, since, until
+    except Exception:
+        return 0.0, None, None
+
+def query_provisioned_node_hours(project_id, token, metric_type, days=30):
+    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を 1時間 ALIGN_MEAN 集計で正確算出"""
+    now      = datetime.now(timezone.utc)
+    end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
+
+    params = urllib.parse.urlencode({
+        "filter": f'metric.type="{metric_type}"',
+        "interval.startTime": start_time,
+        "interval.endTime": end_time,
+        "aggregation.alignmentPeriod": "3600s",
+        "aggregation.perSeriesAligner": "ALIGN_MEAN"
+    })
+    url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
+    try:
+        data = fetch_json(url, token)
+        total_hours = 0.0
+        since, until = None, None
+        for ts in data.get("timeSeries", []):
+            for p in ts.get("points", []):
+                v = p.get("value", {})
+                val = float(v.get("doubleValue") or v.get("int64Value", 0))
+                if val > 0:
+                    total_hours += val
+                    t_start = p.get("interval", {}).get("startTime")
+                    t_end   = p.get("interval", {}).get("endTime")
+                    if t_start and (since is None or t_start < since): since = t_start
+                    if t_end   and (until is None or t_end   > until): until = t_end
+        return total_hours, since, until
     except Exception:
         return 0.0, None, None
 
@@ -385,16 +428,14 @@ def main():
                 raw_30[mkey] = val
                 print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
                 continue
-            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去時系列を取得して補正
+            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去30日全量時系列を ALIGN_MEAN 1時間アラインメントで正確算出
             if mkey in METRIC_QUERY_MAP:
                 metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-                val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
-                if val == 0.0 and mkey == "bigtable_node_hours":
-                    val, m_since, m_until = query_metric(project_id, token, "bigtable.googleapis.com/cluster/node_count", "bigtable_cluster", days=30, since_time=snap_since)
-                raw_30[mkey] = val
+                node_hours, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
+                raw_30[mkey] = node_hours
                 if m_since: all_since.append(m_since)
                 if m_until: all_until.append(m_until)
-                used_str = f"{val:,.4f}" if val else "0 (未使用/削除済み)"
+                used_str = f"{node_hours:,.2f} ノード時間" if node_hours > 0 else "0 (未使用/削除済み)"
                 print(f"  ・[Monitoring履歴検出] {mkey}: {used_str}")
                 continue
 
@@ -409,7 +450,7 @@ def main():
             continue
 
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
+        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
         raw_30[mkey] = val
         if m_since: all_since.append(m_since)
         if m_until: all_until.append(m_until)
