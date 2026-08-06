@@ -38,7 +38,7 @@ def get_project_id():
 
 def fetch_json(url, token):
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    with urllib.request.urlopen(req, timeout=5) as resp:
         return json.loads(resp.read().decode())
 
 def query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None):
@@ -117,7 +117,76 @@ METRIC_QUERY_MAP = {
         "spanner.googleapis.com/instance/node_count",
         "spanner_instance",
     ),
+    # Cloud Bigtable
+    "bigtable_node_hours": (
+        "bigtable.googleapis.com/server/node_count",
+        "bigtable_cluster",
+    ),
+    # AlloyDB
+    "alloydb_cpu_hours": (
+        "alloydb.googleapis.com/instance/cpu/usage_time",
+        "alloydb_instance",
+    ),
 }
+
+def check_live_provisioned_nodes(project_id):
+    """Monitoring API未反映時（作成直後）のフォールバック用: gcloudで稼働リソースを直接検出"""
+    nodes = {
+        "bigtable_node_hours": 0.0,
+        "spanner_node_hours": 0.0,
+        "alloydb_cpu_hours": 0.0,
+    }
+    # Bigtable 稼働ノード数
+    try:
+        res = subprocess.run(
+            ["/root/google-cloud-sdk/bin/gcloud", "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
+            capture_output=True, text=True, timeout=15
+        )
+        if res.returncode == 0:
+            insts = json.loads(res.stdout or "[]")
+            for inst in insts:
+                if inst.get("state") == "READY":
+                    inst_id = inst.get("name", "").split("/")[-1]
+                    res_cls = subprocess.run(
+                        ["/root/google-cloud-sdk/bin/gcloud", "bigtable", "clusters", "list", f"--instances={inst_id}", f"--project={project_id}", "--format=json", "--quiet"],
+                        capture_output=True, text=True, timeout=15
+                    )
+                    if res_cls.returncode == 0:
+                        clusters = json.loads(res_cls.stdout or "[]")
+                        for cls in clusters:
+                            nodes["bigtable_node_hours"] += float(cls.get("serveNodes", 1))
+    except Exception:
+        pass
+
+    # Spanner 稼働ノード数
+    try:
+        res = subprocess.run(
+            ["/root/google-cloud-sdk/bin/gcloud", "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
+            capture_output=True, text=True, timeout=15
+        )
+        if res.returncode == 0:
+            insts = json.loads(res.stdout or "[]")
+            for inst in insts:
+                if inst.get("state") == "READY":
+                    nodes["spanner_node_hours"] += float(inst.get("nodeCount", 1))
+    except Exception:
+        pass
+
+    # AlloyDB 稼働 vCPU数
+    try:
+        res = subprocess.run(
+            ["/root/google-cloud-sdk/bin/gcloud", "alloydb", "instances", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"],
+            capture_output=True, text=True, timeout=15
+        )
+        if res.returncode == 0:
+            insts = json.loads(res.stdout or "[]")
+            for inst in insts:
+                if inst.get("state") == "READY":
+                    nodes["alloydb_cpu_hours"] += float(inst.get("cpuCount", 4))
+    except Exception:
+        pass
+
+    return nodes
 
 # GCS は read/write を method ラベルで区別する必要があるため別途フィルタ
 GCS_READ_METHODS  = {"ReadObject", "GetObject", "ListObjects", "ListBuckets",
@@ -291,10 +360,21 @@ def main():
         print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
 
 
-    # その他メトリクス (常に過去30日間の生カウンターを取得)
+    # その他メトリクス (プロビジョニング型サービスはgcloudリアルタイム検知を優先)
     for mkey in metric_keys:
         if mkey in raw_30:
             continue   # 上記で取得済み
+
+        # プロビジョニング型リソース (Bigtable, Spanner, AlloyDB) の即時検出
+        if mkey in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"):
+            live_nodes = check_live_provisioned_nodes(project_id)
+            live_cnt = live_nodes.get(mkey, 0.0)
+            if live_cnt > 0:
+                val = live_cnt * 24.0 * 30.0  # 月換算ノード/vCPU時間 (720 hours for 1 node)
+                raw_30[mkey] = val
+                print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
+                continue
+
         if mkey not in METRIC_QUERY_MAP:
             val, m_since, m_until = query_generic_api_count(project_id, token, days=30)
             raw_30[mkey] = val
@@ -303,6 +383,7 @@ def main():
             used_str = f"{val:,.4f}" if val else "0 (未使用)"
             print(f"  ・[汎用自動計測] {mkey}: {used_str}")
             continue
+
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
         val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30)
         raw_30[mkey] = val

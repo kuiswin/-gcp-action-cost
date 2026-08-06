@@ -1,126 +1,98 @@
 {
-  "project_id": "qiita-app-170",
+  "project_id": "ferrous-iridium-286000",
   "free_tier_subtractions_30days": [
     {
       "リソース": "Cloud Storage Read",
-      "30日消費量": "40 回",
+      "30日累計消費量": "271 回",
       "無料枠上限": "50,000 回/月",
-      "無料枠残量": "49,960 回",
-      "残量率": "99.92%",
+      "無料枠残量": "49,729 回",
+      "残量率": "99.46%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
     },
     {
       "リソース": "Cloud Storage Write",
-      "30日消費量": "0 回",
+      "30日累計消費量": "73 回",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
-      "超過消費量": "0 回",
-      "確定請求": "￥0 (未使用)"
-    },
-    {
-      "リソース": "BigQuery クエリ",
-      "30日消費量": "0 TB",
-      "無料枠上限": "1 TB/月",
-      "無料枠残量": "1 TB",
-      "残量率": "100.00%",
-      "超過消費量": "0 TB",
-      "確定請求": "￥0 (完全無料)"
-    },
-    {
-      "リソース": "Gemini API (AI画像生成)",
-      "30日消費量": "0 枚",
-      "無料枠上限": "従量制 ($0.040/枚)",
-      "無料枠残量": "従量制枠なし",
-      "残量率": "N/A",
-      "超過消費量": "0 枚",
-      "確定請求": "￥0 (未使用)"
+      "超過消費量": "73 回",
+      "確定請求": "￥0.0566"
     },
     {
       "リソース": "Cloud Run CPU",
-      "30日消費量": "21.02 vCPU秒",
+      "30日累計消費量": "6,214.33 vCPU秒",
       "無料枠上限": "180,000 vCPU秒/月",
-      "無料枠残量": "179,978.98 vCPU秒",
-      "残量率": "99.99%",
+      "無料枠残量": "173,785.67 vCPU秒",
+      "残量率": "96.55%",
       "超過消費量": "0 vCPU秒",
       "確定請求": "￥0 (完全無料)"
     },
     {
-      "リソース": "Gemini API (テキスト入力)",
-      "30日消費量": "0 1kトークン",
-      "無料枠上限": "従量制",
-      "無料枠残量": "従量制枠なし",
-      "残量率": "N/A",
-      "超過消費量": "0 1kトークン",
-      "確定請求": "￥0 (未使用)"
-    },
-    {
       "リソース": "Cloud Run Request",
-      "30日消費量": "20 回",
+      "30日累計消費量": "5,876 回",
       "無料枠上限": "2,000,000 回/月",
-      "無料枠残量": "1,999,980 回",
-      "残量率": "100.00%",
+      "無料枠残量": "1,994,124 回",
+      "残量率": "99.71%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Bigtable Node",
+      "30日累計消費量": "720 ノード時間",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "720 ノード時間",
+      "確定請求": "￥89,280.0000"
     }
   ],
   "time_matrix": {
     "1_minute": {
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "query_tb_scanned": 0.0,
-      "cpu_seconds": 0.0005,
-      "request_count": 0.0005,
-      "gcs_read_ops": 0.0009,
-      "gcs_write_ops": 0.0,
-      "gross_cost_jpy": 2e-06,
+      "bigtable_node_hours": 0.0167,
+      "cpu_seconds": 0.1439,
+      "request_count": 0.136,
+      "gcs_read_ops": 0.0063,
+      "gcs_write_ops": 0.0017,
+      "gross_cost_jpy": 2.071345,
       "net_billed_jpy": 0.0
     },
     "10_minutes": {
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "query_tb_scanned": 0.0,
-      "cpu_seconds": 0.0049,
-      "request_count": 0.0046,
-      "gcs_read_ops": 0.0093,
-      "gcs_write_ops": 0.0,
-      "gross_cost_jpy": 1.9e-05,
+      "bigtable_node_hours": 0.1667,
+      "cpu_seconds": 1.4385,
+      "request_count": 1.3602,
+      "gcs_read_ops": 0.0627,
+      "gcs_write_ops": 0.0169,
+      "gross_cost_jpy": 20.676253,
       "net_billed_jpy": 0.0
     },
     "1_hour": {
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "query_tb_scanned": 0.0,
-      "cpu_seconds": 0.03,
-      "request_count": 0.03,
-      "gcs_read_ops": 0.06,
-      "gcs_write_ops": 0.0,
-      "gross_cost_jpy": 0.000117,
+      "bigtable_node_hours": 1.0,
+      "cpu_seconds": 8.63,
+      "request_count": 8.16,
+      "gcs_read_ops": 0.38,
+      "gcs_write_ops": 0.1,
+      "gross_cost_jpy": 124.032711,
       "net_billed_jpy": 0.0
     },
     "1_day": {
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "query_tb_scanned": 0.0,
-      "cpu_seconds": 0.7,
-      "request_count": 0.7,
-      "gcs_read_ops": 1.3,
-      "gcs_write_ops": 0.0,
-      "gross_cost_jpy": 0.002728,
+      "bigtable_node_hours": 24.0,
+      "cpu_seconds": 207.1,
+      "request_count": 195.9,
+      "gcs_read_ops": 9.0,
+      "gcs_write_ops": 2.4,
+      "gross_cost_jpy": 2976.784976,
       "net_billed_jpy": 0.0
     },
     "30_days": {
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "query_tb_scanned": 0.0,
-      "cpu_seconds": 21.02,
-      "request_count": 20.0,
-      "gcs_read_ops": 40.0,
-      "gcs_write_ops": 0.0,
-      "gross_cost_jpy": 0.081914,
+      "bigtable_node_hours": 720.0,
+      "cpu_seconds": 6214.33,
+      "request_count": 5876.0,
+      "gcs_read_ops": 271.0,
+      "gcs_write_ops": 73.0,
+      "gross_cost_jpy": 89303.554997,
       "net_billed_jpy": 0.0
     }
   },
-  "total_billed_jpy": 0.0
+  "total_billed_jpy": 89280.056575
 }
