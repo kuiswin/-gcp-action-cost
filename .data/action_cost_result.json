@@ -3,25 +3,25 @@
   "free_tier_subtractions_30days": [
     {
       "リソース": "Cloud Storage Read",
-      "操作増分 (Diff)": "317 回",
+      "操作増分 (Diff)": "0 回",
       "無料枠上限": "50,000 回/月",
-      "無料枠残量": "49,683 回",
-      "残量率": "99.37%",
+      "無料枠残量": "50,000 回",
+      "残量率": "100.00%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
     },
     {
       "リソース": "Cloud Storage Write",
-      "操作増分 (Diff)": "94 回 (経過 157秒)",
+      "操作増分 (Diff)": "0 回 (経過 399秒)",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
-      "超過消費量": "94 回",
-      "確定請求": "￥0.0729"
+      "超過消費量": "0 回",
+      "確定請求": "￥0 (未使用)"
     },
     {
       "リソース": "Gemini API (AI画像生成)",
-      "操作増分 (Diff)": "0 枚 (経過 157秒)",
+      "操作増分 (Diff)": "0 枚 (経過 399秒)",
       "無料枠上限": "従量制 ($0.040/枚)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
@@ -30,7 +30,7 @@
     },
     {
       "リソース": "Gemini API (テキスト入力)",
-      "操作増分 (Diff)": "0 1kトークン (経過 157秒)",
+      "操作増分 (Diff)": "0 1kトークン (経過 399秒)",
       "無料枠上限": "従量制",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
@@ -38,8 +38,17 @@
       "確定請求": "￥0 (未使用)"
     },
     {
+      "リソース": "Cloud Pub/Sub メッセージ転送",
+      "操作増分 (Diff)": "0 GB",
+      "無料枠上限": "10 GB/月",
+      "無料枠残量": "10 GB",
+      "残量率": "100.00%",
+      "超過消費量": "0 GB",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
       "リソース": "Cloud Bigtable Node",
-      "操作増分 (Diff)": "0 ノード時間 (経過 157秒)",
+      "操作増分 (Diff)": "0 ノード時間 (経過 399秒)",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
@@ -47,12 +56,21 @@
       "確定請求": "￥0 (未使用)"
     },
     {
-      "リソース": "AlloyDB vCPU",
-      "操作増分 (Diff)": "0 vCPU時間 (経過 157秒)",
+      "リソース": "Compute Engine (e2-micro)",
+      "操作増分 (Diff)": "0 時間",
+      "無料枠上限": "744 時間/月 (1インスタンス分)",
+      "無料枠残量": "744 時間",
+      "残量率": "100.00%",
+      "超過消費量": "0 時間",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Spanner Node",
+      "操作増分 (Diff)": "0 ノード時間 (経過 399秒)",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
-      "超過消費量": "0 vCPU時間",
+      "超過消費量": "0 ノード時間",
       "確定請求": "￥0 (未使用)"
     },
     {
@@ -65,12 +83,48 @@
       "確定請求": "￥0 (完全無料)"
     },
     {
+      "リソース": "AlloyDB vCPU",
+      "操作増分 (Diff)": "0 vCPU時間 (経過 399秒)",
+      "無料枠上限": "無料枠なし (従量課金)",
+      "無料枠残量": "従量制枠なし",
+      "残量率": "N/A",
+      "超過消費量": "0 vCPU時間",
+      "確定請求": "￥0 (未使用)"
+    },
+    {
+      "リソース": "Secret Manager アクセス",
+      "操作増分 (Diff)": "0 10k回",
+      "無料枠上限": "10,000 オペレーション/月",
+      "無料枠残量": "1 10k回",
+      "残量率": "100.00%",
+      "超過消費量": "0 10k回",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Cloud Functions 呼び出し",
+      "操作増分 (Diff)": "0 回",
+      "無料枠上限": "2,000,000 回/月",
+      "無料枠残量": "2,000,000 回",
+      "残量率": "100.00%",
+      "超過消費量": "0 回",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
       "リソース": "Cloud Run CPU",
       "操作増分 (Diff)": "0 vCPU秒",
       "無料枠上限": "180,000 vCPU秒/月",
       "無料枠残量": "180,000 vCPU秒",
       "残量率": "100.00%",
       "超過消費量": "0 vCPU秒",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
+      "リソース": "Artifact Registry ストレージ",
+      "操作増分 (Diff)": "0 GB",
+      "無料枠上限": "0.5 GB/月",
+      "無料枠残量": "0.50 GB",
+      "残量率": "100.00%",
+      "超過消費量": "0 GB",
       "確定請求": "￥0 (完全無料)"
     },
     {
@@ -81,88 +135,104 @@
       "残量率": "100.00%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
-    },
-    {
-      "リソース": "Cloud Spanner Node",
-      "操作増分 (Diff)": "0 ノード時間 (経過 157秒)",
-      "無料枠上限": "無料枠なし (従量課金)",
-      "無料枠残量": "従量制枠なし",
-      "残量率": "N/A",
-      "超過消費量": "0 ノード時間",
-      "確定請求": "￥0 (未使用)"
     }
   ],
   "time_matrix": {
     "1_minute": {
+      "secret_access_ops": 0.0,
+      "gcs_read_ops": 0.0,
+      "gcs_write_ops": 0.0,
+      "artifact_storage_gb": 0.0,
+      "spanner_node_hours": 0.0,
+      "gce_instance_hours": 0.0,
+      "function_invocations": 0.0,
       "image_gen_count": 0.0,
       "text_input_tokens": 0.0,
-      "gcs_read_ops": 0.0073,
-      "gcs_write_ops": 0.0022,
-      "spanner_node_hours": 0.0,
-      "alloydb_cpu_hours": 0.0,
       "query_tb_scanned": 0.0,
+      "alloydb_cpu_hours": 0.0,
       "cpu_seconds": 0.0,
       "request_count": 0.0,
       "bigtable_node_hours": 0.0,
-      "gross_cost_jpy": 2e-06,
+      "pubsub_message_bytes": 0.0,
+      "gross_cost_jpy": 0.0,
       "net_billed_jpy": 0.0
     },
     "10_minutes": {
+      "secret_access_ops": 0.0,
+      "gcs_read_ops": 0.0,
+      "gcs_write_ops": 0.0,
+      "artifact_storage_gb": 0.0,
+      "spanner_node_hours": 0.0,
+      "gce_instance_hours": 0.0,
+      "function_invocations": 0.0,
       "image_gen_count": 0.0,
       "text_input_tokens": 0.0,
-      "gcs_read_ops": 0.0734,
-      "gcs_write_ops": 0.0218,
-      "spanner_node_hours": 0.0,
-      "alloydb_cpu_hours": 0.0,
       "query_tb_scanned": 0.0,
+      "alloydb_cpu_hours": 0.0,
       "cpu_seconds": 0.0,
       "request_count": 0.0,
       "bigtable_node_hours": 0.0,
-      "gross_cost_jpy": 2.1e-05,
+      "pubsub_message_bytes": 0.0,
+      "gross_cost_jpy": 0.0,
       "net_billed_jpy": 0.0
     },
     "1_hour": {
+      "secret_access_ops": 0.0,
+      "gcs_read_ops": 0.0,
+      "gcs_write_ops": 0.0,
+      "artifact_storage_gb": 0.0,
+      "spanner_node_hours": 0.0,
+      "gce_instance_hours": 0.0,
+      "function_invocations": 0.0,
       "image_gen_count": 0.0,
       "text_input_tokens": 0.0,
-      "gcs_read_ops": 0.44,
-      "gcs_write_ops": 0.13,
-      "spanner_node_hours": 0.0,
-      "alloydb_cpu_hours": 0.0,
       "query_tb_scanned": 0.0,
+      "alloydb_cpu_hours": 0.0,
       "cpu_seconds": 0.0,
       "request_count": 0.0,
       "bigtable_node_hours": 0.0,
-      "gross_cost_jpy": 0.000128,
+      "pubsub_message_bytes": 0.0,
+      "gross_cost_jpy": 0.0,
       "net_billed_jpy": 0.0
     },
     "1_day": {
+      "secret_access_ops": 0.0,
+      "gcs_read_ops": 0.0,
+      "gcs_write_ops": 0.0,
+      "artifact_storage_gb": 0.0,
+      "spanner_node_hours": 0.0,
+      "gce_instance_hours": 0.0,
+      "function_invocations": 0.0,
       "image_gen_count": 0.0,
       "text_input_tokens": 0.0,
-      "gcs_read_ops": 10.6,
-      "gcs_write_ops": 3.1,
-      "spanner_node_hours": 0.0,
-      "alloydb_cpu_hours": 0.0,
       "query_tb_scanned": 0.0,
+      "alloydb_cpu_hours": 0.0,
       "cpu_seconds": 0.0,
       "request_count": 0.0,
       "bigtable_node_hours": 0.0,
-      "gross_cost_jpy": 0.00306,
+      "pubsub_message_bytes": 0.0,
+      "gross_cost_jpy": 0.0,
       "net_billed_jpy": 0.0
     },
     "30_days": {
+      "secret_access_ops": 0.0,
+      "gcs_read_ops": 0.0,
+      "gcs_write_ops": 0.0,
+      "artifact_storage_gb": 0.0,
+      "spanner_node_hours": 0.0,
+      "gce_instance_hours": 0.0,
+      "function_invocations": 0.0,
       "image_gen_count": 0.0,
       "text_input_tokens": 0.0,
-      "gcs_read_ops": 317.0,
-      "gcs_write_ops": 94.0,
-      "spanner_node_hours": 0.0,
-      "alloydb_cpu_hours": 0.0,
       "query_tb_scanned": 0.0,
+      "alloydb_cpu_hours": 0.0,
       "cpu_seconds": 0.0,
       "request_count": 0.0,
       "bigtable_node_hours": 0.0,
-      "gross_cost_jpy": 0.092504,
+      "pubsub_message_bytes": 0.0,
+      "gross_cost_jpy": 0.0,
       "net_billed_jpy": 0.0
     }
   },
-  "total_billed_jpy": 0.07285
+  "total_billed_jpy": 0.0
 }
