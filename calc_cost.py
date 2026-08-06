@@ -134,12 +134,12 @@ def main():
     parser = argparse.ArgumentParser(description="GCP Action Cost Profiler (All-in-One CLI)")
     parser.add_argument("--step",    type=int, choices=[1, 2, 3, 4, 5], help="指定したステップのみ実行 (1-5)")
     parser.add_argument("--project", help="GCP Project ID")
-    parser.add_argument("-s", "--snap", action="store_true",
-                        help="スナップショットモード: 前回スナップあり→差分表示、なし→通常30日集計+スナップ保存")
+    parser.add_argument("-r", "--refresh", action="store_true",
+                        help="キャッシュを破棄してGCP Catalog APIから単価マスターを強制再取得")
 
     args, unknown = parser.parse_known_args()
-    if "-s" in unknown or "--snap" in unknown:
-        args.snap = True
+    if "-r" in unknown or "--refresh" in unknown:
+        args.refresh = True
 
     if args.step:
         print(f"🚀 Step {args.step} を実行します...")
@@ -147,31 +147,33 @@ def main():
         sys.exit(0 if success else 1)
 
     # ----------------------------------------------------------------
-    # --snap モード: スナップショットの有無で分岐
+    # 自動スナップショット＆差分計算モード（.data/snapshot.json の有無で自動分岐）
     # ----------------------------------------------------------------
-    snap_mode   = args.snap
-    has_snap    = snap_mode and os.path.exists(SNAP_FILE)
+    has_snap    = os.path.exists(SNAP_FILE)
     extra_env   = {}
 
-    if snap_mode and has_snap:
-        # 差分モード: 前回スナップのタイムスタンプ以降のデータだけを取得
-        with open(SNAP_FILE, "r", encoding="utf-8") as f:
-            snap = json.load(f)
-        snap_time = snap.get("saved_at") or snap.get("data_until")
-        extra_env["COST_SNAP_SINCE"] = snap_time or ""
-        extra_env["COST_SNAP_RAW"]   = json.dumps(snap.get("raw_30d", {}))
+    if args.refresh:
+        extra_env["COST_FORCE_REFRESH"] = "1"
+        print("🔄 強制リフレッシュモード: キャッシュを無効化してGCP APIから最新データを再取得します")
+
+    if has_snap:
+        # 差分モード: 前回スナップのタイムスタンプ以降のデータと直前カウンターを比較
+        try:
+            with open(SNAP_FILE, "r", encoding="utf-8") as f:
+                snap = json.load(f)
+            snap_time = snap.get("saved_at") or snap.get("data_until")
+            extra_env["COST_SNAP_SINCE"] = snap_time or ""
+            extra_env["COST_SNAP_RAW"]   = json.dumps(snap.get("raw_30d", {}))
+            print("================================================================================")
+            print("🔍 自動差分比較モード: 直前のスナップショットとの比較＆現行コスト表示")
+            print(f"   直前基準点: {snap_time}")
+            print("================================================================================")
+        except Exception:
+            has_snap = False
+
+    if not has_snap:
         print("================================================================================")
-        print("🔍 差分モード: 前回スナップショットとの差分を計算します")
-        print(f"   基準点: {snap_time}")
-        print("================================================================================")
-    elif snap_mode:
-        # 初回スナップ: 通常の30日集計後にスナップを保存する
-        print("================================================================================")
-        print("📷 初回スナップショットモード: 現在値を保存します")
-        print("================================================================================")
-    else:
-        print("================================================================================")
-        print("🚀 GCP Action Cost Profiler (5ステップ・一括実行パイプライン)")
+        print("🚀 GCP Action Cost Profiler (初回実行: スナップショット自動生成)")
         print("================================================================================")
 
     for step in range(1, 6):
@@ -181,19 +183,17 @@ def main():
             print(f"❌ Step {step} の実行でエラーが発生したため中断しました。", file=sys.stderr)
             sys.exit(1)
 
-    # --snap の場合: usage_delta.json をスナップとして保存
-    if snap_mode:
-        usage_delta_file = os.path.join(os.path.abspath(".data"), "usage_delta.json")
-        save_snapshot(usage_delta_file)
-        if not has_snap:
-            print("\n⏳ 準備完了！")
-            print("👉 テストしたい操作（閲覧・投稿など）を実行してください")
-            print("👉 3分待ってから同じコマンド（python3 calc_cost.py --snap）を再実行すると差分表示されます💰")
-        else:
-            print("\n💰 差分計算完了。スナップショットを更新しました。")
+    # 毎回自動で最新状態をスナップショットとして保存・更新
+    usage_delta_file = os.path.join(os.path.abspath(".data"), "usage_delta.json")
+    save_snapshot(usage_delta_file)
+
+    if has_snap:
+        print("\n💰 差分計算および現行コスト計算が完了しました。スナップショットを更新しました。")
     else:
-        print("\n🎉 全5ステップの処理およびJSON連携が完了しました！")
+        print("\n🎉 初回プロファイリング完了！スナップショットを自動作成しました。")
+        print("👉 アプリの操作を実行後、再度 `python3 calc_cost.py` を実行すると自動で増分コストが表示されます💰")
 
 
 if __name__ == "__main__":
     main()
+

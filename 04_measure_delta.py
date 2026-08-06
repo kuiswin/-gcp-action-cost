@@ -365,7 +365,7 @@ def main():
         if mkey in raw_30:
             continue   # 上記で取得済み
 
-        # プロビジョニング型リソース (Bigtable, Spanner, AlloyDB) の即時検出
+        # プロビジョニング型リソース (Bigtable, Spanner, AlloyDB) の即時検出および過去ログからの補正
         if mkey in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"):
             live_nodes = check_live_provisioned_nodes(project_id)
             live_cnt = live_nodes.get(mkey, 0.0)
@@ -374,6 +374,18 @@ def main():
                 raw_30[mkey] = val
                 print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
                 continue
+            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去時系列を取得して補正
+            metric_type, resource_type = METRIC_QUERY_MAP[mkey]
+            val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
+            # Bigtable / Spanner のメトリクスで別名も試行
+            if val == 0.0 and mkey == "bigtable_node_hours":
+                val, m_since, m_until = query_metric(project_id, token, "bigtable.googleapis.com/cluster/node_count", "bigtable_cluster", days=30, since_time=snap_since)
+            raw_30[mkey] = val
+            if m_since: all_since.append(m_since)
+            if m_until: all_until.append(m_until)
+            used_str = f"{val:,.4f}" if val else "0 (未使用/削除済み)"
+            print(f"  ・[Monitoring履歴検出] {mkey}: {used_str}")
+            continue
 
         if mkey not in METRIC_QUERY_MAP:
             val, m_since, m_until = query_generic_api_count(project_id, token, days=30)
@@ -385,7 +397,7 @@ def main():
             continue
 
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30)
+        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=snap_since)
         raw_30[mkey] = val
         if m_since: all_since.append(m_since)
         if m_until: all_until.append(m_until)
