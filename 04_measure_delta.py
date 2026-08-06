@@ -84,19 +84,34 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
         return 0.0, None, None
 
 
-SERVICE_RULES_FILE = os.path.join(DATA_DIR, "..", "service_rules.json")
-if not os.path.exists(SERVICE_RULES_FILE):
-    SERVICE_RULES_FILE = os.path.join(DATA_DIR, "service_rules.json")
+RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
 
 def load_service_rules():
-    """service_rules.json からメトリクスルール定義を取得する。ファイル不在時はデフォルトテーブルにフォールバック"""
-    rules_path = os.path.abspath(SERVICE_RULES_FILE)
-    if os.path.exists(rules_path):
-        try:
-            with open(rules_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+    """service_rules.json からメトリクスルール定義を取得する。必要に応じて GitHub からフェッチ"""
+    local_candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "service_rules.json"),
+        os.path.join(os.getcwd(), "service_rules.json"),
+        os.path.join(DATA_DIR, "..", "service_rules.json"),
+        os.path.join(DATA_DIR, "service_rules.json"),
+    ]
+    for path in local_candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+    # ローカルになければ GitHub からフェッチ
+    url = f"{RAW_BASE_URL}service_rules.json"
+    try:
+        req = urllib.request.Request(url, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        pass
+
+    # 完全フォールバック用マスターマップ
     return {
         "metrics_map": {
             "request_count": {"metric_type": "run.googleapis.com/request_count", "resource_type": "cloud_run_revision"},
@@ -106,9 +121,14 @@ def load_service_rules():
             "query_tb_scanned": {"metric_type": "bigquery.googleapis.com/storage/stored_bytes", "resource_type": "bigquery_dataset"},
             "spanner_node_hours": {"metric_type": "spanner.googleapis.com/instance/node_count", "resource_type": "spanner_instance", "category": "provisioned"},
             "bigtable_node_hours": {"metric_type": "bigtable.googleapis.com/server/node_count", "fallback_metric_type": "bigtable.googleapis.com/cluster/node_count", "resource_type": "bigtable_cluster", "category": "provisioned"},
-            "alloydb_cpu_hours": {"metric_type": "alloydb.googleapis.com/instance/cpu/usage_time", "resource_type": "alloydb_instance", "category": "provisioned"}
+            "alloydb_cpu_hours": {"metric_type": "alloydb.googleapis.com/instance/cpu/usage_time", "resource_type": "alloydb_instance", "category": "provisioned"},
+            "pubsub_message_bytes": {"metric_type": "pubsub.googleapis.com/topic/send_message_operation_count", "resource_type": "pubsub_topic"},
+            "function_invocations": {"metric_type": "cloudfunctions.googleapis.com/function/execution_count", "resource_type": "cloud_function"},
+            "gce_instance_hours": {"metric_type": "compute.googleapis.com/instance/uptime", "resource_type": "gce_instance", "category": "provisioned"},
+            "secret_access_ops": {"metric_type": "secretmanager.googleapis.com/secret/access_count", "resource_type": "secretmanager_secret"},
+            "artifact_storage_gb": {"metric_type": "artifactregistry.googleapis.com/repository/storage_used", "resource_type": "artifactregistry_repository"}
         },
-        "provisioned_services": ["bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours"]
+        "provisioned_services": ["bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours", "gce_instance_hours"]
     }
 
 SERVICE_RULES = load_service_rules()

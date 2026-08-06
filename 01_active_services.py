@@ -79,12 +79,16 @@ def main():
 
     print(f"✓ 有効化されている全GCPサービス: 計 {len(detected_services)} 件を検出")
     if core_services:
-        print(f"  ・💰 コスト発生対象コアサービス ({len(core_services)} 件): {', '.join(core_services)}")
+        print(f"  ・💰 コスト発生対象コアサービス ({len(core_services)} 件):")
+        for name in core_services:
+            print(f"     - {name}")
     else:
         print("  ・💰 コスト発生対象コアサービス (0 件): 現在プロビジョニング中の課金リソースはありません")
 
     if infra_apis:
-        print(f"  ・🆓 無料管理・インフラ基盤API ({len(infra_apis)} 件): {', '.join(infra_apis)}")
+        print(f"  ・🆓 無料管理・インフラ基盤API ({len(infra_apis)} 件):")
+        for name in infra_apis:
+            print(f"     - {name}")
 
     result = {
         "project_id": project_id,
