@@ -57,11 +57,40 @@ def main():
     except Exception as e:
         print(f"注: API取得フォールバック: {e}")
 
+    FREE_INFRA_APIS = {
+        "iam.googleapis.com",
+        "iamcredentials.googleapis.com",
+        "cloudresourcemanager.googleapis.com",
+        "cloudbilling.googleapis.com",
+        "serviceusage.googleapis.com",
+        "logging.googleapis.com",
+        "cloudaicompanion.googleapis.com",
+        "geminicloudassist.googleapis.com"
+    }
+
+    core_services = []
+    infra_apis = []
+
+    for s in detected_services:
+        if s["api_name"] in FREE_INFRA_APIS:
+            infra_apis.append(s["service_name"])
+        else:
+            core_services.append(s["service_name"])
+
     print(f"✓ 有効化されている全GCPサービス: 計 {len(detected_services)} 件を検出")
+    if core_services:
+        print(f"  ・💰 コスト発生対象コアサービス ({len(core_services)} 件): {', '.join(core_services)}")
+    else:
+        print("  ・💰 コスト発生対象コアサービス (0 件): 現在プロビジョニング中の課金リソースはありません")
+
+    if infra_apis:
+        print(f"  ・🆓 無料管理・インフラ基盤API ({len(infra_apis)} 件): {', '.join(infra_apis)}")
 
     result = {
         "project_id": project_id,
         "total_count": len(detected_services),
+        "core_services_count": len(core_services),
+        "infra_apis_count": len(infra_apis),
         "active_services": detected_services
     }
 
