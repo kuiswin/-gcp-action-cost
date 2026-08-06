@@ -395,13 +395,30 @@ def main():
 
     # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
     eval_30 = {}
+    snap_elapsed_seconds = 0.0
     if snap_mode and snap_raw:
         print("\n  [カウンター増分方式] 前回スナップショット (Point A) との増分を計算中...")
+        if snap_since:
+            try:
+                t_snap = datetime.fromisoformat(snap_since.replace("Z", "+00:00"))
+                t_now  = datetime.now(timezone.utc)
+                snap_elapsed_seconds = max(0.0, (t_now - t_snap).total_seconds())
+            except Exception:
+                snap_elapsed_seconds = 0.0
+
+        elapsed_hours = snap_elapsed_seconds / 3600.0
+
         for mkey, val_b in raw_30.items():
             val_a = float(snap_raw.get(mkey, 0.0))
-            diff_val = max(0.0, val_b - val_a)
-            eval_30[mkey] = diff_val
-            print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 増分 {diff_val:,.2f}")
+            if mkey in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours") and elapsed_hours > 0 and val_b > 0 and val_a > 0:
+                live_nodes = val_b / 720.0
+                inc_node_hours = live_nodes * elapsed_hours
+                eval_30[mkey] = val_b
+                print(f"    - {mkey}: 継続稼働 ({snap_elapsed_seconds:.1f}秒 / {elapsed_hours*60:.2f}分間) × {live_nodes:.0f}ノード = 経過増分 {inc_node_hours:.4f} ノード時間")
+            else:
+                diff_val = max(0.0, val_b - val_a)
+                eval_30[mkey] = diff_val
+                print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 増分 {diff_val:,.2f}")
     else:
         eval_30 = raw_30.copy()
 
@@ -453,6 +470,7 @@ def main():
     usage_delta = {
         "project_id":           project_id,
         "measured_at":          datetime.now(timezone.utc).isoformat(),
+        "snap_elapsed_seconds": snap_elapsed_seconds,
         "data_since":           data_since,
         "data_until":           data_until,
         "actual_days_measured": actual_days,
