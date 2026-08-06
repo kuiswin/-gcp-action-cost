@@ -13,7 +13,7 @@ Step 5: 05_action_cost.py      (サービス別数式明細 ＆ 時間軸マト�
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import os
 import subprocess
@@ -22,6 +22,16 @@ import time
 import urllib.request
 
 RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
+
+def to_jst_str(iso_str):
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        jst_dt = dt.astimezone(timezone(timedelta(hours=9)))
+        return jst_dt.strftime("%Y-%m-%d %H:%M:%S JST")
+    except Exception:
+        return iso_str
 
 def get_base_dir():
     try:
@@ -167,7 +177,7 @@ def main():
             extra_env["COST_SNAP_RAW"]   = json.dumps(snap.get("raw_30d", {}))
             print("================================================================================")
             print("🔍 自動差分比較モード: 直前のスナップショットとの比較＆現行コスト表示")
-            print(f"   直前基準点: {snap_time}")
+            print(f"   直前基準点: {to_jst_str(snap_time)}")
             print("================================================================================")
         except Exception:
             has_snap = False

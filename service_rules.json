@@ -34,8 +34,7 @@
       "gcloud_provider": "spanner"
     },
     "bigtable_node_hours": {
-      "metric_type": "bigtable.googleapis.com/server/node_count",
-      "fallback_metric_type": "bigtable.googleapis.com/cluster/node_count",
+      "metric_type": "bigtable.googleapis.com/cluster/node_count",
       "resource_type": "bigtable_cluster",
       "category": "provisioned",
       "gcloud_provider": "bigtable"
