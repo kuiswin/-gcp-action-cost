@@ -2,20 +2,59 @@
   "project_id": "ferrous-iridium-286000",
   "active_services_count": 8,
   "matched_services": [
+    "Cloud Pub/Sub",
+    "Gemini API / Vertex AI",
     "Secret Manager",
     "Cloud Storage",
-    "Artifact Registry",
-    "Cloud Spanner",
-    "Compute Engine",
-    "Cloud Functions",
-    "Gemini API / Vertex AI",
-    "BigQuery",
-    "AlloyDB",
-    "Cloud Run",
     "Cloud Bigtable",
-    "Cloud Pub/Sub"
+    "Artifact Registry",
+    "Cloud Functions",
+    "Compute Engine",
+    "BigQuery",
+    "Cloud Run",
+    "AlloyDB",
+    "Cloud Spanner"
   ],
   "target_unit_prices": {
+    "pubsub": {
+      "display_name": "Cloud Pub/Sub",
+      "unit_prices": {
+        "message_ingestion_per_gb_jpy": 6.2
+      },
+      "free_tier_metrics": {
+        "pubsub_message_bytes": {
+          "label": "Cloud Pub/Sub メッセージ転送",
+          "unit": "GB",
+          "price_key": "message_ingestion_per_gb_jpy",
+          "free_limit": 10.0,
+          "free_limit_display": "10 GB/月"
+        }
+      }
+    },
+    "gemini_api": {
+      "display_name": "Gemini API / Vertex AI",
+      "unit_prices": {
+        "image_generation_per_image_jpy": 6.0,
+        "input_text_per_1k_tokens_jpy": 0.023249999999999996,
+        "output_text_per_1k_tokens_jpy": 0.09299999999999999
+      },
+      "free_tier_metrics": {
+        "image_gen_count": {
+          "label": "Gemini API (AI画像生成)",
+          "unit": "枚",
+          "price_key": "image_generation_per_image_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制 ($0.040/枚)"
+        },
+        "text_input_tokens": {
+          "label": "Gemini API (テキスト入力)",
+          "unit": "1kトークン",
+          "price_key": "input_text_per_1k_tokens_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制"
+        }
+      }
+    },
     "secret_manager": {
       "display_name": "Secret Manager",
       "unit_prices": {
@@ -56,6 +95,21 @@
         }
       }
     },
+    "cloud_bigtable": {
+      "display_name": "Cloud Bigtable",
+      "unit_prices": {
+        "node_per_hour_jpy": 124.0
+      },
+      "free_tier_metrics": {
+        "bigtable_node_hours": {
+          "label": "Cloud Bigtable Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
     "artifact_registry": {
       "display_name": "Artifact Registry",
       "unit_prices": {
@@ -68,38 +122,6 @@
           "price_key": "storage_per_gb_month_jpy",
           "free_limit": 0.5,
           "free_limit_display": "0.5 GB/月"
-        }
-      }
-    },
-    "cloud_spanner": {
-      "display_name": "Cloud Spanner",
-      "unit_prices": {
-        "node_per_hour_jpy": 232.5,
-        "pu_100_per_hour_jpy": 23.25
-      },
-      "free_tier_metrics": {
-        "spanner_node_hours": {
-          "label": "Cloud Spanner Node",
-          "unit": "ノード時間",
-          "price_key": "node_per_hour_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "無料枠なし (従量課金)"
-        }
-      }
-    },
-    "compute_engine": {
-      "display_name": "Compute Engine",
-      "unit_prices": {
-        "e2_micro_hour_jpy": 1.3019999999999998,
-        "standard_disk_gb_month_jpy": 6.2
-      },
-      "free_tier_metrics": {
-        "gce_instance_hours": {
-          "label": "Compute Engine (e2-micro)",
-          "unit": "時間",
-          "price_key": "e2_micro_hour_jpy",
-          "free_limit": 744.0,
-          "free_limit_display": "744 時間/月 (1インスタンス分)"
         }
       }
     },
@@ -119,27 +141,19 @@
         }
       }
     },
-    "gemini_api": {
-      "display_name": "Gemini API / Vertex AI",
+    "compute_engine": {
+      "display_name": "Compute Engine",
       "unit_prices": {
-        "image_generation_per_image_jpy": 6.0,
-        "input_text_per_1k_tokens_jpy": 0.023249999999999996,
-        "output_text_per_1k_tokens_jpy": 0.09299999999999999
+        "e2_micro_hour_jpy": 1.3019999999999998,
+        "standard_disk_gb_month_jpy": 6.2
       },
       "free_tier_metrics": {
-        "image_gen_count": {
-          "label": "Gemini API (AI画像生成)",
-          "unit": "枚",
-          "price_key": "image_generation_per_image_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "従量制 ($0.040/枚)"
-        },
-        "text_input_tokens": {
-          "label": "Gemini API (テキスト入力)",
-          "unit": "1kトークン",
-          "price_key": "input_text_per_1k_tokens_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "従量制"
+        "gce_instance_hours": {
+          "label": "Compute Engine (e2-micro)",
+          "unit": "時間",
+          "price_key": "e2_micro_hour_jpy",
+          "free_limit": 744.0,
+          "free_limit_display": "744 時間/月 (1インスタンス分)"
         }
       }
     },
@@ -156,21 +170,6 @@
           "price_key": "query_per_tb_scanned_jpy",
           "free_limit": 1.0,
           "free_limit_display": "1 TB/月"
-        }
-      }
-    },
-    "alloydb": {
-      "display_name": "AlloyDB",
-      "unit_prices": {
-        "vcpu_per_hour_jpy": 10.850000000000001
-      },
-      "free_tier_metrics": {
-        "alloydb_cpu_hours": {
-          "label": "AlloyDB vCPU",
-          "unit": "vCPU時間",
-          "price_key": "vcpu_per_hour_jpy",
-          "free_limit": 0.0,
-          "free_limit_display": "無料枠なし (従量課金)"
         }
       }
     },
@@ -198,33 +197,34 @@
         }
       }
     },
-    "cloud_bigtable": {
-      "display_name": "Cloud Bigtable",
+    "alloydb": {
+      "display_name": "AlloyDB",
       "unit_prices": {
-        "node_per_hour_jpy": 124.0
+        "vcpu_per_hour_jpy": 10.850000000000001
       },
       "free_tier_metrics": {
-        "bigtable_node_hours": {
-          "label": "Cloud Bigtable Node",
-          "unit": "ノード時間",
-          "price_key": "node_per_hour_jpy",
+        "alloydb_cpu_hours": {
+          "label": "AlloyDB vCPU",
+          "unit": "vCPU時間",
+          "price_key": "vcpu_per_hour_jpy",
           "free_limit": 0.0,
           "free_limit_display": "無料枠なし (従量課金)"
         }
       }
     },
-    "pubsub": {
-      "display_name": "Cloud Pub/Sub",
+    "cloud_spanner": {
+      "display_name": "Cloud Spanner",
       "unit_prices": {
-        "message_ingestion_per_gb_jpy": 6.2
+        "node_per_hour_jpy": 232.5,
+        "pu_100_per_hour_jpy": 23.25
       },
       "free_tier_metrics": {
-        "pubsub_message_bytes": {
-          "label": "Cloud Pub/Sub メッセージ転送",
-          "unit": "GB",
-          "price_key": "message_ingestion_per_gb_jpy",
-          "free_limit": 10.0,
-          "free_limit_display": "10 GB/月"
+        "spanner_node_hours": {
+          "label": "Cloud Spanner Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
         }
       }
     }

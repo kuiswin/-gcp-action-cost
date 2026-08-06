@@ -106,78 +106,88 @@ def main():
         if billing_actuals.get("billing_account_name"):
             print(f"・[公式Billing API] アカウント: {billing_actuals.get('billing_account_name')}")
 
-    # --------------------------------------------------------------------------
-    # 表①: 無料枠引き算明細 (JSON出力)
-    # --------------------------------------------------------------------------
-    free_tier_rows = []
-    billed_total   = 0.0
-    is_snap = bool(os.environ.get("COST_SNAP_SINCE", ""))
-    val_key = "操作増分 (Diff)" if is_snap else "30日累計消費量"
-
+    raw_30_counters = delta_data.get("raw_30_counters", {})
     snap_elapsed_seconds = delta_data.get("snap_elapsed_seconds", 0.0)
+    is_snap = bool(os.environ.get("COST_SNAP_SINCE", ""))
 
-    for metric_key, value_30 in m30.items():
-        if metric_key == "window_minutes":
-            continue
-        meta = metric_catalog.get(metric_key)
-        if meta is None:
-            continue
+    def calculate_subtraction_rows(counters, is_diff_mode=False):
+        rows = []
+        total_billed = 0.0
+        val_header = "操作増分 (Diff)" if is_diff_mode else "30日累計消費量"
 
-        label       = meta["label"]
-        unit        = meta["unit"]
-        price_jpy   = meta["price_jpy"]
-        free_limit  = meta["free_limit"]
-        free_display= meta["free_limit_display"]
+        for metric_key, value in counters.items():
+            if metric_key == "window_minutes":
+                continue
+            meta = metric_catalog.get(metric_key)
+            if meta is None:
+                continue
 
-        # スナップモード（差分モード）時の継続稼働ノード時間補正
-        display_value = value_30
-        if is_snap and metric_key in PROVISIONED_SERVICES and snap_elapsed_seconds > 0:
-            live_nodes = value_30 / 720.0
-            inc_node_hours = live_nodes * (snap_elapsed_seconds / 3600.0)
-            display_value = inc_node_hours
-            gross = inc_node_hours * price_jpy
+            label       = meta["label"]
+            unit        = meta["unit"]
+            price_jpy   = meta["price_jpy"]
+            free_limit  = meta["free_limit"]
+            free_display= meta["free_limit_display"]
+
+            display_value = value
+            if is_diff_mode and metric_key in PROVISIONED_SERVICES and snap_elapsed_seconds > 0:
+                live_nodes = value / 720.0
+                inc_node_hours = live_nodes * (snap_elapsed_seconds / 3600.0)
+                display_value = inc_node_hours
+                gross = inc_node_hours * price_jpy
+            else:
+                gross = value * price_jpy
+
+            if free_limit > 0:
+                over    = max(0.0, display_value - free_limit)
+                rem     = free_limit - min(display_value, free_limit)
+                pct_rem = (rem / free_limit) * 100.0
+                billed  = over * price_jpy
+                total_billed += billed
+                row = {
+                    "リソース":         label,
+                    val_header:         fmt_val(display_value, unit),
+                    "無料枠上限":       free_display,
+                    "無料枠残量":       fmt_val(rem, unit),
+                    "残量率":           f"{pct_rem:.2f}%",
+                    "超過消費量":       fmt_val(over, unit),
+                    "確定請求":         "￥0 (完全無料)" if billed == 0 else f"￥{billed:,.4f}",
+                }
+            else:
+                billed = gross
+                total_billed += billed
+                snap_time_suffix = f" (経過 {snap_elapsed_seconds:.0f}秒)" if (is_diff_mode and snap_elapsed_seconds > 0) else ""
+                row = {
+                    "リソース":         label,
+                    val_header:         f"{fmt_val(display_value, unit)}{snap_time_suffix}",
+                    "無料枠上限":       free_display,
+                    "無料枠残量":       "従量制枠なし",
+                    "残量率":           "N/A",
+                    "超過消費量":       fmt_val(display_value, unit),
+                    "確定請求":         "￥0 (未使用)" if display_value == 0 else f"￥{billed:,.4f}",
+                }
+
+            rows.append(row)
+        return rows, total_billed
+
+    # 1. 差分モード時: 表① (増分Diff明細)
+    if is_snap:
+        diff_rows, diff_billed_total = calculate_subtraction_rows(m30, is_diff_mode=True)
+        print("\n【表①: 操作前後の増分コスト (Diff) 明細】")
+        print(json.dumps(diff_rows, ensure_ascii=False, indent=2))
+        if diff_billed_total == 0:
+            print("👉 直前操作による増分請求額: 【 ￥0 (無料枠内/増分なし) 】")
         else:
-            gross = value_30 * price_jpy
+            print(f"👉 直前操作による増分請求額: ￥{diff_billed_total:,.4f}")
 
-        if free_limit > 0:
-            over   = max(0.0, display_value - free_limit)
-            rem    = free_limit - min(display_value, free_limit)
-            pct_rem = (rem / free_limit) * 100.0
-            billed  = over * price_jpy
-            billed_total += billed
-            row = {
-                "リソース":         label,
-                val_key:            fmt_val(display_value, unit),
-                "無料枠上限":       free_display,
-                "無料枠残量":       fmt_val(rem, unit),
-                "残量率":           f"{pct_rem:.2f}%",
-                "超過消費量":       fmt_val(over, unit),
-                "確定請求":         "￥0 (完全無料)" if billed == 0 else f"￥{billed:,.4f}",
-            }
-        else:
-            billed = gross
-            billed_total += billed
-            snap_time_suffix = f" (経過 {snap_elapsed_seconds:.0f}秒)" if (is_snap and snap_elapsed_seconds > 0) else ""
-            row = {
-                "リソース":         label,
-                val_key:            f"{fmt_val(display_value, unit)}{snap_time_suffix}",
-                "無料枠上限":       free_display,
-                "無料枠残量":       "従量制枠なし",
-                "残量率":           "N/A",
-                "超過消費量":       fmt_val(display_value, unit),
-                "確定請求":         "￥0 (未使用)" if display_value == 0 else f"￥{billed:,.4f}",
-            }
-
-        free_tier_rows.append(row)
-
-    table_title = "【表①: 操作前後の増分コスト (Diff) 明細】" if is_snap else "【表①: 既定のGCP公式無料枠 (Always Free) からの引き算明細 (過去30日間)】"
-    print(f"\n{table_title}")
-    print(json.dumps(free_tier_rows, ensure_ascii=False, indent=2))
-
-    if billed_total == 0:
-        print("\n👉 結論: 全リソースで無料枠が十分に残っており、確定請求額は【 ￥0 】です。")
+    # 2. 常に全量表示: 表② (過去30日間 全量累計消費 & 確定請求額明細)
+    total_rows, total_billed_all = calculate_subtraction_rows(raw_30_counters, is_diff_mode=False)
+    table2_title = "【表②: 過去30日間 全量リソース消費 ＆ 確定・推計請求額明細】" if is_snap else "【表①: 過去30日間 全量リソース消費 ＆ 確定・推計請求額明細】"
+    print(f"\n{table2_title}")
+    print(json.dumps(total_rows, ensure_ascii=False, indent=2))
+    if total_billed_all == 0:
+        print("\n👉 結論: 過去30日間の全量リソース消費は無料枠内に収まっており、確定請求額は【 ￥0 】です。")
     else:
-        print(f"\n👉 確定請求合計: ￥{billed_total:,.4f}")
+        print(f"\n👉 過去30日間 全量確定・推計請求合計: ￥{total_billed_all:,.4f}")
 
     # --------------------------------------------------------------------------
     # 表②: 時間軸マトリックス × 単価 (JSON出力)
@@ -235,9 +245,10 @@ def main():
     # --------------------------------------------------------------------------
     result = {
         "project_id":                    project_id,
-        "free_tier_subtractions_30days": free_tier_rows,
+        "free_tier_subtractions_30days": total_rows,
+        "diff_subtractions":              diff_rows if is_snap else [],
         "time_matrix":                   result_matrix,
-        "total_billed_jpy":              round(billed_total, 6),
+        "total_billed_jpy":              round(total_billed_all, 6),
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
