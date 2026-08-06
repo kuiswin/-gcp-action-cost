@@ -3,16 +3,16 @@
   "free_tier_subtractions_30days": [
     {
       "リソース": "Cloud Storage Read",
-      "30日累計消費量": "271 回",
+      "操作増分 (Diff)": "231 回",
       "無料枠上限": "50,000 回/月",
-      "無料枠残量": "49,729 回",
-      "残量率": "99.46%",
+      "無料枠残量": "49,769 回",
+      "残量率": "99.54%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
     },
     {
       "リソース": "Cloud Storage Write",
-      "30日累計消費量": "73 回",
+      "操作増分 (Diff)": "73 回 (経過 852563秒)",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
@@ -20,79 +20,79 @@
       "確定請求": "￥0.0566"
     },
     {
-      "リソース": "Cloud Run CPU",
-      "30日累計消費量": "6,214.33 vCPU秒",
-      "無料枠上限": "180,000 vCPU秒/月",
-      "無料枠残量": "173,785.67 vCPU秒",
-      "残量率": "96.55%",
-      "超過消費量": "0 vCPU秒",
-      "確定請求": "￥0 (完全無料)"
-    },
-    {
       "リソース": "Cloud Run Request",
-      "30日累計消費量": "5,876 回",
+      "操作増分 (Diff)": "5,856 回",
       "無料枠上限": "2,000,000 回/月",
-      "無料枠残量": "1,994,124 回",
+      "無料枠残量": "1,994,144 回",
       "残量率": "99.71%",
       "超過消費量": "0 回",
       "確定請求": "￥0 (完全無料)"
     },
     {
+      "リソース": "Cloud Run CPU",
+      "操作増分 (Diff)": "6,193.31 vCPU秒",
+      "無料枠上限": "180,000 vCPU秒/月",
+      "無料枠残量": "173,806.69 vCPU秒",
+      "残量率": "96.56%",
+      "超過消費量": "0 vCPU秒",
+      "確定請求": "￥0 (完全無料)"
+    },
+    {
       "リソース": "Cloud Bigtable Node",
-      "30日累計消費量": "720 ノード時間",
+      "操作増分 (Diff)": "236.82 ノード時間 (経過 852563秒)",
       "無料枠上限": "無料枠なし (従量課金)",
       "無料枠残量": "従量制枠なし",
       "残量率": "N/A",
-      "超過消費量": "720 ノード時間",
-      "確定請求": "￥89,280.0000"
+      "超過消費量": "236.82 ノード時間",
+      "確定請求": "￥29,366.0568"
     }
   ],
   "time_matrix": {
     "1_minute": {
       "bigtable_node_hours": 0.0167,
-      "cpu_seconds": 0.1439,
-      "request_count": 0.136,
-      "gcs_read_ops": 0.0063,
+      "cpu_seconds": 0.1434,
+      "request_count": 0.1356,
+      "gcs_read_ops": 0.0053,
       "gcs_write_ops": 0.0017,
-      "gross_cost_jpy": 2.071345,
+      "gross_cost_jpy": 2.071344,
       "net_billed_jpy": 0.0
     },
     "10_minutes": {
       "bigtable_node_hours": 0.1667,
-      "cpu_seconds": 1.4385,
-      "request_count": 1.3602,
-      "gcs_read_ops": 0.0627,
+      "cpu_seconds": 1.4336,
+      "request_count": 1.3556,
+      "gcs_read_ops": 0.0535,
       "gcs_write_ops": 0.0169,
-      "gross_cost_jpy": 20.676253,
+      "gross_cost_jpy": 20.676233,
       "net_billed_jpy": 0.0
     },
     "1_hour": {
       "bigtable_node_hours": 1.0,
-      "cpu_seconds": 8.63,
-      "request_count": 8.16,
-      "gcs_read_ops": 0.38,
+      "cpu_seconds": 8.6,
+      "request_count": 8.13,
+      "gcs_read_ops": 0.32,
       "gcs_write_ops": 0.1,
-      "gross_cost_jpy": 124.032711,
+      "gross_cost_jpy": 124.032593,
       "net_billed_jpy": 0.0
     },
     "1_day": {
       "bigtable_node_hours": 24.0,
-      "cpu_seconds": 207.1,
-      "request_count": 195.9,
-      "gcs_read_ops": 9.0,
+      "cpu_seconds": 206.4,
+      "request_count": 195.2,
+      "gcs_read_ops": 7.7,
       "gcs_write_ops": 2.4,
-      "gross_cost_jpy": 2976.784976,
+      "gross_cost_jpy": 2976.782248,
       "net_billed_jpy": 0.0
     },
     "30_days": {
       "bigtable_node_hours": 720.0,
-      "cpu_seconds": 6214.33,
-      "request_count": 5876.0,
-      "gcs_read_ops": 271.0,
+      "cpu_seconds": 6193.31,
+      "request_count": 5856.0,
+      "gcs_read_ops": 231.0,
       "gcs_write_ops": 73.0,
-      "gross_cost_jpy": 89303.554997,
+      "gross_cost_jpy": 89303.473082,
       "net_billed_jpy": 0.0
     }
   },
-  "total_billed_jpy": 89280.056575
+  "total_billed_jpy": 29366.113346
 }

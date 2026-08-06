@@ -1,7 +1,8 @@
 {
-  "saved_at": "2026-08-06T11:56:42.020141+00:00",
+  "snapshot_filename": "snap_20260806_115642.json",
+  "saved_at_utc": "2026-08-06T11:56:42.020141+00:00",
   "project_id": "ferrous-iridium-286000",
-  "raw_30d": {
+  "raw_counters": {
     "gcs_read_ops": 271.0,
     "gcs_write_ops": 73.0,
     "request_count": 5876.0,

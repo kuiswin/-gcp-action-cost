@@ -85,6 +85,8 @@ def main():
     is_snap = bool(os.environ.get("COST_SNAP_SINCE", ""))
     val_key = "操作増分 (Diff)" if is_snap else "30日累計消費量"
 
+    snap_elapsed_seconds = delta_data.get("snap_elapsed_seconds", 0.0)
+
     for metric_key, value_30 in m30.items():
         if metric_key == "window_minutes":
             continue
@@ -98,17 +100,25 @@ def main():
         free_limit  = meta["free_limit"]
         free_display= meta["free_limit_display"]
 
-        gross = value_30 * price_jpy
+        # スナップモード（差分モード）時の継続稼働ノード時間補正
+        display_value = value_30
+        if is_snap and metric_key in ("bigtable_node_hours", "spanner_node_hours", "alloydb_cpu_hours") and snap_elapsed_seconds > 0:
+            live_nodes = value_30 / 720.0
+            inc_node_hours = live_nodes * (snap_elapsed_seconds / 3600.0)
+            display_value = inc_node_hours
+            gross = inc_node_hours * price_jpy
+        else:
+            gross = value_30 * price_jpy
 
         if free_limit > 0:
-            over   = max(0.0, value_30 - free_limit)
-            rem    = free_limit - min(value_30, free_limit)
+            over   = max(0.0, display_value - free_limit)
+            rem    = free_limit - min(display_value, free_limit)
             pct_rem = (rem / free_limit) * 100.0
             billed  = over * price_jpy
             billed_total += billed
             row = {
                 "リソース":         label,
-                val_key:            fmt_val(value_30, unit),
+                val_key:            fmt_val(display_value, unit),
                 "無料枠上限":       free_display,
                 "無料枠残量":       fmt_val(rem, unit),
                 "残量率":           f"{pct_rem:.2f}%",
@@ -118,14 +128,15 @@ def main():
         else:
             billed = gross
             billed_total += billed
+            snap_time_suffix = f" (経過 {snap_elapsed_seconds:.0f}秒)" if (is_snap and snap_elapsed_seconds > 0) else ""
             row = {
                 "リソース":         label,
-                val_key:            fmt_val(value_30, unit),
+                val_key:            f"{fmt_val(display_value, unit)}{snap_time_suffix}",
                 "無料枠上限":       free_display,
                 "無料枠残量":       "従量制枠なし",
                 "残量率":           "N/A",
-                "超過消費量":       fmt_val(value_30, unit),
-                "確定請求":         "￥0 (未使用)" if value_30 == 0 else f"￥{billed:,.4f}",
+                "超過消費量":       fmt_val(display_value, unit),
+                "確定請求":         "￥0 (未使用)" if display_value == 0 else f"￥{billed:,.4f}",
             }
 
         free_tier_rows.append(row)
