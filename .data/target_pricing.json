@@ -1,6 +1,187 @@
 {
   "project_id": "ferrous-iridium-286000",
   "active_services_count": 8,
-  "matched_services": [],
-  "target_unit_prices": {}
+  "matched_services": [
+    "Gemini API / Vertex AI",
+    "Cloud Functions",
+    "Artifact Registry",
+    "Cloud Storage",
+    "Cloud Spanner",
+    "Compute Engine",
+    "AlloyDB",
+    "Cloud Pub/Sub",
+    "BigQuery",
+    "Cloud Run",
+    "Secret Manager",
+    "Cloud Bigtable"
+  ],
+  "target_unit_prices": {
+    "gemini_api": {
+      "display_name": "Gemini API / Vertex AI",
+      "unit_prices": {
+        "image_generation_per_image_jpy": 6.0,
+        "input_text_per_1k_tokens_jpy": 0.023249999999999996,
+        "output_text_per_1k_tokens_jpy": 0.09299999999999999
+      },
+      "free_tier_metrics": {
+        "image_gen_count": {
+          "label": "Gemini API (AI画像生成)",
+          "unit": "枚",
+          "price_key": "image_generation_per_image_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制 ($0.040/枚)"
+        },
+        "text_input_tokens": {
+          "label": "Gemini API (テキスト入力)",
+          "unit": "1kトークン",
+          "price_key": "input_text_per_1k_tokens_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "従量制"
+        }
+      }
+    },
+    "cloud_functions": {
+      "display_name": "Cloud Functions",
+      "unit_prices": {
+        "invocations_per_million_jpy": 62.0,
+        "compute_time_per_gb_sec_jpy": 0.00038750000000000004
+      }
+    },
+    "artifact_registry": {
+      "display_name": "Artifact Registry",
+      "unit_prices": {
+        "storage_per_gb_month_jpy": 15.5
+      }
+    },
+    "cloud_storage": {
+      "display_name": "Cloud Storage",
+      "unit_prices": {
+        "class_a_write_per_op_jpy": 0.0007750000000000001,
+        "class_b_read_per_op_jpy": 6.2e-05,
+        "storage_per_gb_month_jpy": 3.1
+      },
+      "free_tier_metrics": {
+        "gcs_read_ops": {
+          "label": "Cloud Storage Read",
+          "unit": "回",
+          "price_key": "class_b_read_per_op_jpy",
+          "free_limit": 50000.0,
+          "free_limit_display": "50,000 回/月"
+        },
+        "gcs_write_ops": {
+          "label": "Cloud Storage Write",
+          "unit": "回",
+          "price_key": "class_a_write_per_op_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "cloud_spanner": {
+      "display_name": "Cloud Spanner",
+      "unit_prices": {
+        "node_per_hour_jpy": 232.5,
+        "pu_100_per_hour_jpy": 23.25
+      },
+      "free_tier_metrics": {
+        "spanner_node_hours": {
+          "label": "Cloud Spanner Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "compute_engine": {
+      "display_name": "Compute Engine",
+      "unit_prices": {
+        "e2_micro_hour_jpy": 1.3019999999999998,
+        "standard_disk_gb_month_jpy": 6.2
+      }
+    },
+    "alloydb": {
+      "display_name": "AlloyDB",
+      "unit_prices": {
+        "vcpu_per_hour_jpy": 10.850000000000001
+      },
+      "free_tier_metrics": {
+        "alloydb_cpu_hours": {
+          "label": "AlloyDB vCPU",
+          "unit": "vCPU時間",
+          "price_key": "vcpu_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "pubsub": {
+      "display_name": "Cloud Pub/Sub",
+      "unit_prices": {
+        "message_ingestion_per_gb_jpy": 6.2
+      }
+    },
+    "bigquery": {
+      "display_name": "BigQuery",
+      "unit_prices": {
+        "query_per_tb_scanned_jpy": 968.75,
+        "storage_per_gb_month_jpy": 3.1
+      },
+      "free_tier_metrics": {
+        "query_tb_scanned": {
+          "label": "BigQuery クエリ",
+          "unit": "TB",
+          "price_key": "query_per_tb_scanned_jpy",
+          "free_limit": 1.0,
+          "free_limit_display": "1 TB/月"
+        }
+      }
+    },
+    "cloud_run": {
+      "display_name": "Cloud Run",
+      "unit_prices": {
+        "cpu_per_vcpu_sec_jpy": 0.00372,
+        "memory_per_gb_sec_jpy": 0.00038750000000000004,
+        "request_per_count_jpy": 6.2e-05
+      },
+      "free_tier_metrics": {
+        "cpu_seconds": {
+          "label": "Cloud Run CPU",
+          "unit": "vCPU秒",
+          "price_key": "cpu_per_vcpu_sec_jpy",
+          "free_limit": 180000.0,
+          "free_limit_display": "180,000 vCPU秒/月"
+        },
+        "request_count": {
+          "label": "Cloud Run Request",
+          "unit": "回",
+          "price_key": "request_per_count_jpy",
+          "free_limit": 2000000.0,
+          "free_limit_display": "2,000,000 回/月"
+        }
+      }
+    },
+    "secret_manager": {
+      "display_name": "Secret Manager",
+      "unit_prices": {
+        "secret_version_month_jpy": 9.299999999999999,
+        "access_per_10k_ops_jpy": 4.6499999999999995
+      }
+    },
+    "cloud_bigtable": {
+      "display_name": "Cloud Bigtable",
+      "unit_prices": {
+        "node_per_hour_jpy": 124.0
+      },
+      "free_tier_metrics": {
+        "bigtable_node_hours": {
+          "label": "Cloud Bigtable Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    }
+  }
 }

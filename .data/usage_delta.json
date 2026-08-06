@@ -1,26 +1,87 @@
 {
   "project_id": "ferrous-iridium-286000",
-  "measured_at": "2026-08-06T23:07:33.202043+00:00",
-  "snap_elapsed_seconds": 292.954554,
-  "data_since": null,
-  "data_until": null,
-  "actual_days_measured": null,
-  "raw_30_counters": {},
+  "measured_at": "2026-08-06T23:10:10.689081+00:00",
+  "snap_elapsed_seconds": 157.482685,
+  "data_since": "2026-08-01T01:41:00.001Z",
+  "data_until": "2026-08-06T14:27:00Z",
+  "actual_days_measured": 5.5,
+  "raw_30_counters": {
+    "gcs_read_ops": 317.0,
+    "gcs_write_ops": 94.0,
+    "image_gen_count": 0.0,
+    "text_input_tokens": 0.0,
+    "bigtable_node_hours": 0.0,
+    "alloydb_cpu_hours": 0.0,
+    "query_tb_scanned": 0.0,
+    "cpu_seconds": 0.0,
+    "request_count": 0.0,
+    "spanner_node_hours": 0.0
+  },
   "time_matrix": {
     "1_minute": {
-      "window_minutes": 1
+      "window_minutes": 1,
+      "gcs_read_ops": 0.0073,
+      "gcs_write_ops": 0.0022,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "bigtable_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "spanner_node_hours": 0.0
     },
     "10_minutes": {
-      "window_minutes": 10
+      "window_minutes": 10,
+      "gcs_read_ops": 0.0734,
+      "gcs_write_ops": 0.0218,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "bigtable_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "spanner_node_hours": 0.0
     },
     "1_hour": {
-      "window_minutes": 60
+      "window_minutes": 60,
+      "gcs_read_ops": 0.44,
+      "gcs_write_ops": 0.13,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "bigtable_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "spanner_node_hours": 0.0
     },
     "1_day": {
-      "window_minutes": 1440
+      "window_minutes": 1440,
+      "gcs_read_ops": 10.6,
+      "gcs_write_ops": 3.1,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "bigtable_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "spanner_node_hours": 0.0
     },
     "30_days": {
-      "window_minutes": 43200
+      "window_minutes": 43200,
+      "gcs_read_ops": 317.0,
+      "gcs_write_ops": 94.0,
+      "image_gen_count": 0.0,
+      "text_input_tokens": 0.0,
+      "bigtable_node_hours": 0.0,
+      "alloydb_cpu_hours": 0.0,
+      "query_tb_scanned": 0.0,
+      "cpu_seconds": 0.0,
+      "request_count": 0.0,
+      "spanner_node_hours": 0.0
     }
   }
 }
