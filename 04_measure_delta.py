@@ -95,37 +95,61 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
         return 0.0, None, None
 
 def query_provisioned_node_hours(project_id, token, metric_type, days=30):
-    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を生の分単位時系列ログから精密算出"""
+    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を過去30日および当月 (8/1~) で精密算出"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
+    month_start_time = f"{now.year}-{now.month:02d}-01T00:00:00Z"
 
-    params = urllib.parse.urlencode({
+    params_30 = urllib.parse.urlencode({
         "filter": f'metric.type="{metric_type}"',
         "interval.startTime": start_time,
         "interval.endTime": end_time,
     })
-    url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
+    url_30 = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params_30}"
+
+    params_month = urllib.parse.urlencode({
+        "filter": f'metric.type="{metric_type}"',
+        "interval.startTime": month_start_time,
+        "interval.endTime": end_time,
+    })
+    url_month = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params_month}"
+
     try:
-        data = fetch_json(url, token)
-        total_sample_minutes = 0.0
+        data_30 = fetch_json(url_30, token)
+        data_month = fetch_json(url_month, token)
+
+        total_30_minutes = 0.0
+        total_month_minutes = 0.0
         since, until = None, None
-        for ts in data.get("timeSeries", []):
+
+        for ts in data_30.get("timeSeries", []):
             for p in ts.get("points", []):
                 v = p.get("value", {})
                 val = float(v.get("doubleValue") or v.get("int64Value", 0))
                 if val > 0:
-                    total_sample_minutes += val  # 毎分サンプルのノード数合計
+                    total_30_minutes += val
                     t_start = p.get("interval", {}).get("startTime")
                     t_end   = p.get("interval", {}).get("endTime")
                     if t_start and (since is None or t_start < since): since = t_start
                     if t_end   and (until is None or t_end   > until): until = t_end
-        
-        # 分単位ノード数を60分で割って精密ノード時間に変換 (例: 208分 / 60 = 3.47ノード時間)
-        exact_node_hours = total_sample_minutes / 60.0
-        return exact_node_hours, since, until
+
+        for ts in data_month.get("timeSeries", []):
+            for p in ts.get("points", []):
+                v = p.get("value", {})
+                val = float(v.get("doubleValue") or v.get("int64Value", 0))
+                if val > 0:
+                    total_month_minutes += val
+
+        node_hours_30    = total_30_minutes / 60.0
+        node_hours_month = total_month_minutes / 60.0
+        # 当月の最小課金単位切り上げ補正 (最小1ノード時間)
+        if node_hours_month > 0 and node_hours_month < 1.0:
+            node_hours_month = 1.0
+
+        return node_hours_30, node_hours_month, since, until
     except Exception:
-        return 0.0, None, None
+        return 0.0, 0.0, None, None
 
 
 RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
@@ -376,6 +400,7 @@ def main():
 
     # 30日間合計値を取得 (差分モード時はsnap_since以降だけ取得)
     raw_30 = {}
+    month_counters = {}
     all_since = []   # 各メトリクスの最初のデータ点を収集
     all_until = []   # 各メトリクスの最後のデータ点を収集
 
@@ -429,15 +454,16 @@ def main():
                 raw_30[mkey] = val
                 print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
                 continue
-            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去30日全量時系列を ALIGN_MEAN 1時間アラインメントで正確算出
+            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去30日および当月(8/1~)全量時系列を精密算出
             if mkey in METRIC_QUERY_MAP:
                 metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-                node_hours, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
-                raw_30[mkey] = node_hours
+                node_hours_30, node_hours_month, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
+                raw_30[mkey] = node_hours_30
+                month_counters[mkey] = node_hours_month
                 if m_since: all_since.append(m_since)
                 if m_until: all_until.append(m_until)
-                used_str = f"{node_hours:,.2f} ノード時間" if node_hours > 0 else "0 (未使用/削除済み)"
-                print(f"  ・[Monitoring履歴検出] {mkey}: {used_str}")
+                used_str = f"{node_hours_month:,.2f} ノード時間 (30日累計: {node_hours_30:,.2f}h)" if node_hours_month > 0 else "0 (未使用/削除済み)"
+                print(f"  ・[Monitoring履歴検出] {mkey}: 当月 {used_str}")
                 continue
 
         if mkey not in METRIC_QUERY_MAP:
@@ -541,6 +567,7 @@ def main():
         "data_until":           data_until,
         "actual_days_measured": actual_days,
         "raw_30_counters":      raw_30,
+        "month_counters":       month_counters,
         "time_matrix":          time_matrix,
     }
 

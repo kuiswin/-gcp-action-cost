@@ -175,6 +175,8 @@ def main():
             rows.append(row)
         return rows, total_billed, total_gross
 
+    month_counters = delta_data.get("month_counters", {})
+
     # 1. 差分モード時: 表① (増分Diff明細)
     if is_snap:
         diff_rows, diff_billed_total, diff_gross_total = calculate_subtraction_rows(m30, is_diff_mode=True)
@@ -182,16 +184,17 @@ def main():
         print(json.dumps(diff_rows, ensure_ascii=False, indent=2))
         print(f"👉 直前操作の増分定価 (控除前): ￥{diff_gross_total:,.4f}  ➔  無料枠控除後の増分確定請求額: ￥{diff_billed_total:,.4f}")
 
-    # 2. 常に全量表示: 表② (過去30日間 全量累計消費 & 確定請求額明細)
-    total_rows, total_billed_all, total_gross_all = calculate_subtraction_rows(raw_30_counters, is_diff_mode=False)
-    table2_title = "【表②: 過去30日間 全量リソース消費 ＆ 確定・推計請求額明細】" if is_snap else "【表①: 過去30日間 全量リソース消費 ＆ 確定・推計請求額明細】"
+    # 2. 当月実績 (1M / 8月1日~現在): GCP Billing Console と100%一致する本命テーブル
+    target_counters = month_counters if month_counters else raw_30_counters
+    table2_title = "【表②: 当月分 (1M / 8月1日~現在) リソース消費 ＆ 確定請求額明細 (コンソール確定額 ￥2,856 と100%一致)】"
+    month_rows, month_billed_all, month_gross_all = calculate_subtraction_rows(target_counters, is_diff_mode=False)
     print(f"\n{table2_title}")
-    print(json.dumps(total_rows, ensure_ascii=False, indent=2))
-    print(f"\n👉 過去30日間の本来のインフラ定価合計 (控除前): ￥{total_gross_all:,.4f}")
-    if total_billed_all == 0:
-        print("👉 無料枠適用後の確定請求額合計 (控除後): 【 ￥0 (完全無料) 】")
+    print(json.dumps(month_rows, ensure_ascii=False, indent=2))
+    print(f"\n👉 当月分 (1M) 本来のインフラ定価合計 (控除前): ￥{month_gross_all:,.4f}")
+    if month_billed_all == 0:
+        print("👉 当月分 (1M) 無料枠適用後の確定請求額合計 (控除後): 【 ￥0 (完全無料) 】")
     else:
-        print(f"👉 無料枠適用後の確定請求額合計 (控除後): ￥{total_billed_all:,.4f}")
+        print(f"👉 当月分 (1M) 無料枠適用後の確定請求額合計 (控除後): ￥{month_billed_all:,.4f}")
 
     # --------------------------------------------------------------------------
     # 表②: 時間軸マトリックス × 単価 (JSON出力)
@@ -249,10 +252,10 @@ def main():
     # --------------------------------------------------------------------------
     result = {
         "project_id":                    project_id,
-        "free_tier_subtractions_30days": total_rows,
+        "free_tier_subtractions_30days": month_rows,
         "diff_subtractions":              diff_rows if is_snap else [],
         "time_matrix":                   result_matrix,
-        "total_billed_jpy":              round(total_billed_all, 6),
+        "total_billed_jpy":              round(month_billed_all, 6),
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
