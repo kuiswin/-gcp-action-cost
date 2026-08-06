@@ -83,6 +83,15 @@ def main():
     with open(USAGE_DELTA_FILE, "r", encoding="utf-8") as f:
         delta_data = json.load(f)
 
+    BILLING_ACTUALS_FILE = os.path.join(DATA_DIR, "billing_actuals.json")
+    billing_actuals = {}
+    if os.path.exists(BILLING_ACTUALS_FILE):
+        try:
+            with open(BILLING_ACTUALS_FILE, "r", encoding="utf-8") as f:
+                billing_actuals = json.load(f)
+        except Exception:
+            pass
+
     project_id   = delta_data.get("project_id", "")
     matrix       = delta_data.get("time_matrix", {})
     m30          = matrix.get("30_days", {})
@@ -91,6 +100,11 @@ def main():
     metric_catalog = build_metric_catalog(pricing_data)
 
     print(f"・対象プロジェクトID: {project_id}")
+    if billing_actuals:
+        status_txt = "有効 (Billing Enabled)" if billing_actuals.get("billing_enabled") else "未有効/プロモーション枠"
+        print(f"・[公式Billing API] ステータス: {status_txt}")
+        if billing_actuals.get("billing_account_name"):
+            print(f"・[公式Billing API] アカウント: {billing_actuals.get('billing_account_name')}")
 
     # --------------------------------------------------------------------------
     # 表①: 無料枠引き算明細 (JSON出力)

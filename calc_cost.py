@@ -34,6 +34,7 @@ def get_base_dir():
 
 def run_step(step_num, project_id=None, extra_env=None):
     step_scripts = {
+        0: "00_billing_actuals.py",
         1: "01_active_services.py",
         2: "02_catalog_pricing.py",
         3: "03_service_pricing.py",
@@ -132,7 +133,7 @@ def save_snapshot(usage_delta_file):
 
 def main():
     parser = argparse.ArgumentParser(description="GCP Action Cost Profiler (All-in-One CLI)")
-    parser.add_argument("--step",    type=int, choices=[1, 2, 3, 4, 5], help="指定したステップのみ実行 (1-5)")
+    parser.add_argument("--step",    type=int, choices=[0, 1, 2, 3, 4, 5], help="指定したステップのみ実行 (0-5)")
     parser.add_argument("--project", help="GCP Project ID")
     parser.add_argument("-r", "--refresh", action="store_true",
                         help="キャッシュを破棄してGCP Catalog APIから単価マスターを強制再取得")
@@ -176,7 +177,7 @@ def main():
         print("🚀 GCP Action Cost Profiler (初回実行: スナップショット自動生成)")
         print("================================================================================")
 
-    for step in range(1, 6):
+    for step in range(0, 6):
         print()
         success = run_step(step, args.project, extra_env=extra_env)
         if not success:

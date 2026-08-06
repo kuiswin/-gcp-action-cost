@@ -45,11 +45,37 @@
       "resource_type": "alloydb_instance",
       "category": "provisioned",
       "gcloud_provider": "alloydb"
+    },
+    "pubsub_message_bytes": {
+      "metric_type": "pubsub.googleapis.com/topic/send_message_operation_count",
+      "resource_type": "pubsub_topic",
+      "category": "metered"
+    },
+    "function_invocations": {
+      "metric_type": "cloudfunctions.googleapis.com/function/execution_count",
+      "resource_type": "cloud_function",
+      "category": "metered"
+    },
+    "gce_instance_hours": {
+      "metric_type": "compute.googleapis.com/instance/uptime",
+      "resource_type": "gce_instance",
+      "category": "provisioned"
+    },
+    "secret_access_ops": {
+      "metric_type": "secretmanager.googleapis.com/secret/access_count",
+      "resource_type": "secretmanager_secret",
+      "category": "metered"
+    },
+    "artifact_storage_gb": {
+      "metric_type": "artifactregistry.googleapis.com/repository/storage_used",
+      "resource_type": "artifactregistry_repository",
+      "category": "metered"
     }
   },
   "provisioned_services": [
     "bigtable_node_hours",
     "spanner_node_hours",
-    "alloydb_cpu_hours"
+    "alloydb_cpu_hours",
+    "gce_instance_hours"
   ]
 }

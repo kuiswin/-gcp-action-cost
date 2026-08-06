@@ -98,6 +98,61 @@
           "free_limit_display": "無料枠なし (従量課金)"
         }
       }
+    },
+    "pubsub": {
+      "metrics": {
+        "pubsub_message_bytes": {
+          "label": "Cloud Pub/Sub メッセージ転送",
+          "unit": "GB",
+          "price_key": "message_ingestion_per_gb_jpy",
+          "free_limit": 10.0,
+          "free_limit_display": "10 GB/月"
+        }
+      }
+    },
+    "cloud_functions": {
+      "metrics": {
+        "function_invocations": {
+          "label": "Cloud Functions 呼び出し",
+          "unit": "回",
+          "price_key": "invocations_per_million_jpy",
+          "free_limit": 2000000.0,
+          "free_limit_display": "2,000,000 回/月"
+        }
+      }
+    },
+    "compute_engine": {
+      "metrics": {
+        "gce_instance_hours": {
+          "label": "Compute Engine (e2-micro)",
+          "unit": "時間",
+          "price_key": "e2_micro_hour_jpy",
+          "free_limit": 744.0,
+          "free_limit_display": "744 時間/月 (1インスタンス分)"
+        }
+      }
+    },
+    "secret_manager": {
+      "metrics": {
+        "secret_access_ops": {
+          "label": "Secret Manager アクセス",
+          "unit": "10k回",
+          "price_key": "access_per_10k_ops_jpy",
+          "free_limit": 1.0,
+          "free_limit_display": "10,000 オペレーション/月"
+        }
+      }
+    },
+    "artifact_registry": {
+      "metrics": {
+        "artifact_storage_gb": {
+          "label": "Artifact Registry ストレージ",
+          "unit": "GB",
+          "price_key": "storage_per_gb_month_jpy",
+          "free_limit": 0.5,
+          "free_limit_display": "0.5 GB/月"
+        }
+      }
     }
   }
 }
