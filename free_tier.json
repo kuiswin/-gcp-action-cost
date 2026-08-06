@@ -76,6 +76,28 @@
           "free_limit_display": "無料枠なし (従量課金)"
         }
       }
+    },
+    "cloud_bigtable": {
+      "metrics": {
+        "bigtable_node_hours": {
+          "label": "Cloud Bigtable Node",
+          "unit": "ノード時間",
+          "price_key": "node_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
+    },
+    "alloydb": {
+      "metrics": {
+        "alloydb_cpu_hours": {
+          "label": "AlloyDB vCPU",
+          "unit": "vCPU時間",
+          "price_key": "vcpu_per_hour_jpy",
+          "free_limit": 0.0,
+          "free_limit_display": "無料枠なし (従量課金)"
+        }
+      }
     }
   }
 }

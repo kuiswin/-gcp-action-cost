@@ -89,6 +89,9 @@ def main():
         "secretmanager.googleapis.com":        ("Secret Manager",        "secret_manager"),
         "artifactregistry.googleapis.com":     ("Artifact Registry",     "artifact_registry"),
         "spanner.googleapis.com":              ("Cloud Spanner",         "cloud_spanner"),
+        "bigtable.googleapis.com":             ("Cloud Bigtable",        "cloud_bigtable"),
+        "bigtableadmin.googleapis.com":        ("Cloud Bigtable",        "cloud_bigtable"),
+        "alloydb.googleapis.com":              ("AlloyDB",               "alloydb"),
     }
 
     target_unit_prices = {}

@@ -1,59 +1,56 @@
 {
   "project_id": "ferrous-iridium-286000",
-  "measured_at": "2026-08-01T03:51:57.917010+00:00",
+  "measured_at": "2026-08-06T11:45:14.237400+00:00",
   "data_since": "2026-08-01T01:41:00.001Z",
-  "data_until": "2026-08-01T03:42:00Z",
-  "actual_days_measured": 0.1,
+  "data_until": "2026-08-05T15:35:00Z",
+  "actual_days_measured": 4.6,
+  "raw_30_counters": {
+    "gcs_read_ops": 271.0,
+    "gcs_write_ops": 73.0,
+    "cpu_seconds": 6214.332311838986,
+    "request_count": 5876.0,
+    "bigtable_node_hours": 720.0
+  },
   "time_matrix": {
     "1_minute": {
       "window_minutes": 1,
-      "gcs_read_ops": 0.0011,
-      "gcs_write_ops": 0.0002,
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "request_count": 0.0004,
-      "cpu_seconds": 0.001,
-      "query_tb_scanned": 0.0
+      "gcs_read_ops": 0.0063,
+      "gcs_write_ops": 0.0017,
+      "cpu_seconds": 0.1439,
+      "request_count": 0.136,
+      "bigtable_node_hours": 0.0167
     },
     "10_minutes": {
       "window_minutes": 10,
-      "gcs_read_ops": 0.0109,
-      "gcs_write_ops": 0.0023,
-      "image_gen_count": 0.0002,
-      "text_input_tokens": 0.0001,
-      "request_count": 0.0039,
-      "cpu_seconds": 0.0103,
-      "query_tb_scanned": 0.0
+      "gcs_read_ops": 0.0627,
+      "gcs_write_ops": 0.0169,
+      "cpu_seconds": 1.4385,
+      "request_count": 1.3602,
+      "bigtable_node_hours": 0.1667
     },
     "1_hour": {
       "window_minutes": 60,
-      "gcs_read_ops": 0.07,
-      "gcs_write_ops": 0.01,
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "request_count": 0.02,
-      "cpu_seconds": 0.06,
-      "query_tb_scanned": 0.0
+      "gcs_read_ops": 0.38,
+      "gcs_write_ops": 0.1,
+      "cpu_seconds": 8.63,
+      "request_count": 8.16,
+      "bigtable_node_hours": 1.0
     },
     "1_day": {
       "window_minutes": 1440,
-      "gcs_read_ops": 1.6,
-      "gcs_write_ops": 0.3,
-      "image_gen_count": 0.0,
-      "text_input_tokens": 0.0,
-      "request_count": 0.6,
-      "cpu_seconds": 1.5,
-      "query_tb_scanned": 0.0
+      "gcs_read_ops": 9.0,
+      "gcs_write_ops": 2.4,
+      "cpu_seconds": 207.1,
+      "request_count": 195.9,
+      "bigtable_node_hours": 24.0
     },
     "30_days": {
       "window_minutes": 43200,
-      "gcs_read_ops": 47.0,
-      "gcs_write_ops": 10.0,
-      "image_gen_count": 1.0,
-      "text_input_tokens": 0.5,
-      "request_count": 17.0,
-      "cpu_seconds": 44.51,
-      "query_tb_scanned": 0.0
+      "gcs_read_ops": 271.0,
+      "gcs_write_ops": 73.0,
+      "cpu_seconds": 6214.33,
+      "request_count": 5876.0,
+      "bigtable_node_hours": 720.0
     }
   }
 }

@@ -102,6 +102,12 @@ def main():
         "cloud_spanner": {
             "node_per_hour_jpy": 1.50 * usd_jpy_rate,
             "pu_100_per_hour_jpy": 0.15 * usd_jpy_rate
+        },
+        "cloud_bigtable": {
+            "node_per_hour_jpy": 0.80 * usd_jpy_rate
+        },
+        "alloydb": {
+            "vcpu_per_hour_jpy": 0.07 * usd_jpy_rate
         }
     }
 

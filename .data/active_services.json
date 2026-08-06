@@ -1,70 +1,35 @@
 {
-  "project_id": "qiita-app-170",
-  "total_count": 32,
+  "project_id": "ferrous-iridium-286000",
+  "total_count": 17,
   "active_services": [
-    {
-      "service_name": "Agent Platform API",
-      "api_name": "aiplatform.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Analytics Hub API",
-      "api_name": "analyticshub.googleapis.com",
-      "status": "enabled"
-    },
     {
       "service_name": "Artifact Registry API",
       "api_name": "artifactregistry.googleapis.com",
       "status": "enabled"
     },
     {
-      "service_name": "BigQuery API",
-      "api_name": "bigquery.googleapis.com",
+      "service_name": "Cloud Bigtable API",
+      "api_name": "bigtable.googleapis.com",
       "status": "enabled"
     },
     {
-      "service_name": "BigQuery Connection API",
-      "api_name": "bigqueryconnection.googleapis.com",
+      "service_name": "Cloud Bigtable Admin API",
+      "api_name": "bigtableadmin.googleapis.com",
       "status": "enabled"
     },
     {
-      "service_name": "BigQuery Data Policy API",
-      "api_name": "bigquerydatapolicy.googleapis.com",
+      "service_name": "Gemini for Google Cloud API",
+      "api_name": "cloudaicompanion.googleapis.com",
       "status": "enabled"
     },
     {
-      "service_name": "BigQuery Data Transfer API",
-      "api_name": "bigquerydatatransfer.googleapis.com",
+      "service_name": "Cloud Billing API",
+      "api_name": "cloudbilling.googleapis.com",
       "status": "enabled"
     },
     {
-      "service_name": "BigQuery Migration API",
-      "api_name": "bigquerymigration.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "BigQuery Reservation API",
-      "api_name": "bigqueryreservation.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "BigQuery Storage API",
-      "api_name": "bigquerystorage.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Google Cloud APIs",
-      "api_name": "cloudapis.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Build API",
-      "api_name": "cloudbuild.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Trace API",
-      "api_name": "cloudtrace.googleapis.com",
+      "service_name": "Cloud Resource Manager API",
+      "api_name": "cloudresourcemanager.googleapis.com",
       "status": "enabled"
     },
     {
@@ -73,23 +38,8 @@
       "status": "enabled"
     },
     {
-      "service_name": "Dataform API",
-      "api_name": "dataform.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Dataplex API",
-      "api_name": "dataplex.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Datastore API",
-      "api_name": "datastore.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Gemini API",
-      "api_name": "generativelanguage.googleapis.com",
+      "service_name": "Gemini Cloud Assist API",
+      "api_name": "geminicloudassist.googleapis.com",
       "status": "enabled"
     },
     {
@@ -103,18 +53,8 @@
       "status": "enabled"
     },
     {
-      "service_name": "Cloud Identity-Aware Proxy API",
-      "api_name": "iap.googleapis.com",
-      "status": "enabled"
-    },
-    {
       "service_name": "Cloud Logging API",
       "api_name": "logging.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Monitoring API",
-      "api_name": "monitoring.googleapis.com",
       "status": "enabled"
     },
     {
@@ -128,18 +68,8 @@
       "status": "enabled"
     },
     {
-      "service_name": "Service Management API",
-      "api_name": "servicemanagement.googleapis.com",
-      "status": "enabled"
-    },
-    {
       "service_name": "Service Usage API",
       "api_name": "serviceusage.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud SQL",
-      "api_name": "sql-component.googleapis.com",
       "status": "enabled"
     },
     {
@@ -150,11 +80,6 @@
     {
       "service_name": "Cloud Storage",
       "api_name": "storage-component.googleapis.com",
-      "status": "enabled"
-    },
-    {
-      "service_name": "Cloud Storage API",
-      "api_name": "storage.googleapis.com",
       "status": "enabled"
     },
     {

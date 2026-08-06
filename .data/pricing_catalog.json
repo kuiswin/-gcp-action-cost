@@ -436,6 +436,16 @@
     },
     "artifact_registry": {
       "storage_per_gb_month_jpy": 15.5
+    },
+    "cloud_spanner": {
+      "node_per_hour_jpy": 232.5,
+      "pu_100_per_hour_jpy": 23.25
+    },
+    "cloud_bigtable": {
+      "node_per_hour_jpy": 124.0
+    },
+    "alloydb": {
+      "vcpu_per_hour_jpy": 10.850000000000001
     }
   }
 }
