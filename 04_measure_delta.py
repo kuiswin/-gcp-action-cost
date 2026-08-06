@@ -438,11 +438,11 @@ def main():
                 live_nodes = val_b / 720.0
                 inc_node_hours = live_nodes * elapsed_hours
                 eval_30[mkey] = val_b
-                print(f"    - {mkey}: 継続稼働 ({snap_elapsed_seconds:.1f}秒 / {elapsed_hours*60:.2f}分間) × {live_nodes:.0f}ノード = 経過増分 {inc_node_hours:.4f} ノード時間")
+                print(f"    - 経過増分 {inc_node_hours:7.4f} ノード時間 (継続 {snap_elapsed_seconds:.0f}秒 × {live_nodes:.0f}ノード)  ({mkey})")
             else:
                 diff_val = max(0.0, val_b - val_a)
                 eval_30[mkey] = diff_val
-                print(f"    - {mkey}: Point B ({val_b:,.2f}) - Point A ({val_a:,.2f}) = 増分 {diff_val:,.2f}")
+                print(f"    - Point B ({val_b:7.2f}) - Point A ({val_a:7.2f}) = 増分 {diff_val:7.2f}  ({mkey})")
     else:
         eval_30 = raw_30.copy()
 
