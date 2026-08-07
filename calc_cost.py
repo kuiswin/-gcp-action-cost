@@ -147,6 +147,8 @@ def main():
     parser.add_argument("--project", help="GCP Project ID")
     parser.add_argument("-r", "--refresh", action="store_true",
                         help="キャッシュを破棄してGCP Catalog APIから単価マスターを強制再取得")
+    parser.add_argument("-s", "--snap", action="store_true",
+                        help="差分計測モード (.data/snapshot.jsonの有無で自動判定されるため指定は任意)")
 
     args, unknown = parser.parse_known_args()
     if "-r" in unknown or "--refresh" in unknown:
