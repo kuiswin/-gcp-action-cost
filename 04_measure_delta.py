@@ -95,7 +95,7 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
         return 0.0, None, None
 
 def query_provisioned_node_hours(project_id, token, metric_type, days=30):
-    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を過去30日および当月 (8/1~) で精密算出"""
+    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を過去30日および当月で精密算出"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
@@ -105,6 +105,8 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
         "filter": f'metric.type="{metric_type}"',
         "interval.startTime": start_time,
         "interval.endTime": end_time,
+        "aggregation.alignmentPeriod": "3600s",
+        "aggregation.perSeriesAligner": "ALIGN_MEAN",
     })
     url_30 = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params_30}"
 
@@ -112,6 +114,8 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
         "filter": f'metric.type="{metric_type}"',
         "interval.startTime": month_start_time,
         "interval.endTime": end_time,
+        "aggregation.alignmentPeriod": "3600s",
+        "aggregation.perSeriesAligner": "ALIGN_MEAN",
     })
     url_month = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params_month}"
 
@@ -119,8 +123,8 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
         data_30 = fetch_json(url_30, token)
         data_month = fetch_json(url_month, token)
 
-        total_30_minutes = 0.0
-        total_month_minutes = 0.0
+        node_hours_30 = 0.0
+        node_hours_month = 0.0
         since, until = None, None
 
         for ts in data_30.get("timeSeries", []):
@@ -128,7 +132,7 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
                 v = p.get("value", {})
                 val = float(v.get("doubleValue") or v.get("int64Value", 0))
                 if val > 0:
-                    total_30_minutes += val
+                    node_hours_30 += val
                     t_start = p.get("interval", {}).get("startTime")
                     t_end   = p.get("interval", {}).get("endTime")
                     if t_start and (since is None or t_start < since): since = t_start
@@ -139,10 +143,8 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
                 v = p.get("value", {})
                 val = float(v.get("doubleValue") or v.get("int64Value", 0))
                 if val > 0:
-                    total_month_minutes += val
+                    node_hours_month += val
 
-        node_hours_30    = total_30_minutes / 60.0
-        node_hours_month = total_month_minutes / 60.0
         # 当月の最小課金単位切り上げ補正 (最小1ノード時間)
         if node_hours_month > 0 and node_hours_month < 1.0:
             node_hours_month = 1.0

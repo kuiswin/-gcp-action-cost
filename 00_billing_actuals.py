@@ -65,8 +65,14 @@ def main():
             data = fetch_json(url, token)
             billing_info["billing_enabled"] = data.get("billingEnabled", False)
             billing_info["billing_account_name"] = data.get("billingAccountName", "")
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                print(f"⚠️ [警告] Cloud Billing APIのアクセス権限不足 (HTTP {e.code})", file=sys.stderr)
+                print("  ※ 正確な請求状態を取得するにはサービスアカウントに roles/billing.viewer 権限等が必要です", file=sys.stderr)
+            else:
+                print(f"⚠️ [警告] Cloud Billing APIの取得に失敗しました: HTTP {e.code}", file=sys.stderr)
         except Exception as e:
-            pass
+            print(f"⚠️ [警告] Cloud Billing APIの取得時にエラーが発生しました: {e}", file=sys.stderr)
 
     # 2. Billing Account / Budgets API から実請求・予算情報を取得
     if billing_info["billing_account_name"] and token:

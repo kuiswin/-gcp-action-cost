@@ -184,11 +184,19 @@ def main():
         print(json.dumps(diff_rows, ensure_ascii=False, indent=2))
         print(f"👉 直前操作の増分定価 (控除前): ￥{diff_gross_total:,.4f}  ➔  無料枠控除後の増分確定請求額: ￥{diff_billed_total:,.4f}")
 
-    # 2. 当月実績 (1M / 8月1日~現在): GCP Billing Console と100%一致する本命テーブル
-    target_counters = month_counters if month_counters else raw_30_counters
-    table2_title = "【表②: 当月分 (1M / 8月1日~現在) リソース消費 ＆ 確定請求額明細 (コンソール確定額 ￥2,856 と100%一致)】"
+    # 2. 当月実績 (1M / 当月1日~現在): 全サービス網羅のマージテーブル
+    target_counters = raw_30_counters.copy()
+    if month_counters:
+        target_counters.update(month_counters)
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    month_name = f"{now.month}月1日〜現在"
+    table2_title = f"【表②: 当月分 (1M / {month_name}) リソース消費 ＆ 確定請求額明細】"
     month_rows, month_billed_all, month_gross_all = calculate_subtraction_rows(target_counters, is_diff_mode=False)
     print(f"\n{table2_title}")
+    print("※注記: 本ツールは標準単価（Standardエディション / デフォルトリージョン等）での概算プロファイラです。")
+    print("     Spanner Enterprise Plusなど上位エディションを利用している場合、実際の請求額とは乖離が生じます。")
     print(json.dumps(month_rows, ensure_ascii=False, indent=2))
     print(f"\n👉 当月分 (1M) 本来のインフラ定価合計 (控除前): ￥{month_gross_all:,.4f}")
     if month_billed_all == 0:
@@ -232,16 +240,20 @@ def main():
                 "掛け算結果": f"{cost:.6f} 円",
             })
 
+        scale_map = {"1_minute": 1/43200, "10_minutes": 10/43200, "1_hour": 60/43200, "1_day": 1440/43200, "30_days": 1.0}
+        net_billed = month_billed_all * scale_map.get(label, 0)
+        net_str = f"￥{net_billed:.6f}" if net_billed > 0 else "￥0 (無料枠内)"
+
         time_matrix_out[disp_label] = {
             "明細":         detail if detail else [{"サービス": "(消費なし)"}],
             "小計":         f"{gross:.6f} 円",
-            "確定請求額":   "￥0 (無料枠内)",
+            "確定請求額":   net_str,
         }
 
         result_matrix[label] = {
             **{k: metrics.get(k, 0.0) for k in billable},
             "gross_cost_jpy": round(gross, 6),
-            "net_billed_jpy": 0.0,
+            "net_billed_jpy": round(net_billed, 6),
         }
 
     print("\n【表②: 時間軸マトリックス・インフラ計算定価 ＆ 確定請求額】")
