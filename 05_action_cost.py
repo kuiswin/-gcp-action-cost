@@ -280,14 +280,16 @@ def main():
     print("📊 期間別 (01 Day / 07 Days / 30 Days) リソース消費量・定価・無料枠・最終確定請求額サマリー")
     print("=" * 115)
 
+    raw_01_counters = delta_data.get("raw_01_counters", {})
+    raw_07_counters = delta_data.get("raw_07_counters", {})
+
     for row in month_rows:
         label = row.get("リソース", "")
-        used_30 = row.get("30日累計消費量", "0")
+        used_30 = row.get("30日累計消費量", row.get("消費量", "0"))
         gross_30_str = row.get("インフラ定価 (控除前)", "￥0")
         free_limit = row.get("無料枠上限", "-")
-        billed_30_str = row.get("確定請求 (控除後)", "￥0")
+        billed_30_str = row.get("確定請求 (控除後)", row.get("最終確定額 (控除後)", "￥0"))
 
-        # 定価と確定請求の数値抽出
         try:
             g30 = float(gross_30_str.replace("￥", "").replace(",", "").split()[0])
         except Exception:
@@ -298,10 +300,38 @@ def main():
         except Exception:
             b30 = 0.0
 
-        g01 = g30 / 30.0
-        b01 = b30 / 30.0
-        g07 = g30 / 30.0 * 7.0
-        b07 = b30 / 30.0 * 7.0
+        # メトリクスのキー(mkey)をラベルから逆引き
+        mkey = None
+        for k, m in metric_catalog.items():
+            if m["label"] == label:
+                mkey = k
+                break
+        
+        # 過去24時間・7日間の完全実測値を取得
+        val_01 = raw_01_counters.get(mkey, 0.0) if mkey else 0.0
+        val_07 = raw_07_counters.get(mkey, 0.0) if mkey else 0.0
+        val_30 = raw_30_counters.get(mkey, 0.0) if mkey else 0.0
+        unit = metric_catalog[mkey]["unit"] if mkey else ""
+        price_jpy = metric_catalog[mkey]["price_jpy"] if mkey else 0.0
+        free_limit_val = metric_catalog[mkey]["free_limit"] if mkey else 0.0
+
+        # リアル実測ベースでの定価計算
+        g01 = val_01 * price_jpy
+        g07 = val_07 * price_jpy
+
+        # 無料枠がある場合の按分 (これまでの推算表示に近い表現にするため、請求ペースを実測比率で按分)
+        if free_limit_val > 0:
+            if b30 > 0 and val_30 > 0:
+                b01 = b30 * (val_01 / val_30)
+                b07 = b30 * (val_07 / val_30)
+            else:
+                b01 = b07 = 0.0
+        else:
+            b01 = g01
+            b07 = g07
+
+        used_01_disp = fmt_val(val_01, unit)
+        used_07_disp = fmt_val(val_07, unit)
 
         # 全角文字（日本語）を2文字分としてカウントし、正確に左揃えパディングするヘルパー関数
         def ljust_jp(text, width):
@@ -313,10 +343,10 @@ def main():
 
         print(f"\n★ 【サービス名】 {label}")
         print("-" * 115)
-        print(f" {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('消費量', 26)}")
+        print(f" {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('実測消費量', 26)}")
         print("-" * 115)
-        print(f" {ljust_jp('01 Day', 10)} │ ￥{g01:09.4f}       │ ￥{b01:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp('1/30 推算量', 26)}")
-        print(f" {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp('7/30 推算量', 26)}")
+        print(f" {ljust_jp('01 Day', 10)} │ ￥{g01:09.4f}       │ ￥{b01:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_01_disp, 26)}")
+        print(f" {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_07_disp, 26)}")
         print(f" {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_30_clean, 26)}")
 
     print("\n" + "=" * 115)

@@ -53,9 +53,6 @@ def fetch_json(url, token):
         return json.loads(resp.read().decode())
 
 def query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None):
-    """指定 metric_type / resource_type でメトリクスを取得する。
-    since_time が指定された場合はその時刻以降、そうでなければ過去 days 日間。
-    戻り値: (total, data_since, data_until) 取得失敗は (0.0, None, None)。"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     if since_time:
@@ -74,29 +71,30 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
     try:
         data   = fetch_json(url, token)
-        total  = 0.0
-        since  = None   # 最初のデータ点
-        until  = None   # 最後のデータ点
+        tot_01 = tot_07 = tot_30 = 0.0
+        since  = until  = None
         for ts in data.get("timeSeries", []):
             for p in ts.get("points", []):
                 v = p.get("value", {})
                 val = int(v["int64Value"]) if "int64Value" in v else float(v.get("doubleValue", 0))
                 if val == 0:
-                    continue          # ゼロポイントは期間計算から除外
-                total += val
+                    continue
+                tot_30 += val
                 t_start = p.get("interval", {}).get("startTime")
                 t_end   = p.get("interval", {}).get("endTime")
-                if t_start and (since is None or t_start < since):
-                    since = t_start
-                if t_end   and (until is None or t_end   > until):
-                    until = t_end
-        return total, since, until
+                if t_end:
+                    t_end_dt = datetime.strptime(t_end[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                    delta_sec = (now - t_end_dt).total_seconds()
+                    if delta_sec <= 86400:     tot_01 += val
+                    if delta_sec <= 7 * 86400: tot_07 += val
+                if t_start and (since is None or t_start < since): since = t_start
+                if t_end   and (until is None or t_end   > until): until = t_end
+        return tot_01, tot_07, tot_30, since, until
     except Exception:
-        return 0.0, None, None
+        return 0.0, 0.0, 0.0, None, None
 
 def query_provisioned_node_hours(project_id, token, metric_type, days=30):
-    """プロビジョニング型メトリクス (Spanner/Bigtable/AlloyDB等) の通算ノード時間を過去30日および当月で精密算出"""
-    now      = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     start_time = (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
     month_start_time = f"{now.year}-{now.month:02d}-01T00:00:00Z"
@@ -123,18 +121,22 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
         data_30 = fetch_json(url_30, token)
         data_month = fetch_json(url_month, token)
 
-        node_hours_30 = 0.0
-        node_hours_month = 0.0
-        since, until = None, None
+        tot_01 = tot_07 = tot_30 = node_hours_month = 0.0
+        since = until = None
 
         for ts in data_30.get("timeSeries", []):
             for p in ts.get("points", []):
                 v = p.get("value", {})
                 val = float(v.get("doubleValue") or v.get("int64Value", 0))
                 if val > 0:
-                    node_hours_30 += val
+                    tot_30 += val
                     t_start = p.get("interval", {}).get("startTime")
                     t_end   = p.get("interval", {}).get("endTime")
+                    if t_end:
+                        t_end_dt = datetime.strptime(t_end[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                        delta_sec = (now - t_end_dt).total_seconds()
+                        if delta_sec <= 86400:     tot_01 += val
+                        if delta_sec <= 7 * 86400: tot_07 += val
                     if t_start and (since is None or t_start < since): since = t_start
                     if t_end   and (until is None or t_end   > until): until = t_end
 
@@ -145,13 +147,12 @@ def query_provisioned_node_hours(project_id, token, metric_type, days=30):
                 if val > 0:
                     node_hours_month += val
 
-        # 当月の最小課金単位切り上げ補正 (最小1ノード時間)
         if node_hours_month > 0 and node_hours_month < 1.0:
             node_hours_month = 1.0
 
-        return node_hours_30, node_hours_month, since, until
+        return tot_01, tot_07, tot_30, node_hours_month, since, until
     except Exception:
-        return 0.0, 0.0, None, None
+        return 0.0, 0.0, 0.0, 0.0, None, None
 
 
 RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/"
@@ -277,8 +278,6 @@ GCS_WRITE_METHODS = {"WriteObject", "PutObject", "PatchObject", "DeleteObject",
 
 
 def query_gcs_ops(project_id, token, days=30, since_time=None):
-    """GCS read / write オペレーション数を個別に取得して返す。
-    戻り値: (read_total, write_total, since, until)"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     if since_time:
@@ -292,7 +291,7 @@ def query_gcs_ops(project_id, token, days=30, since_time=None):
     })
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
 
-    read_total = write_total = 0.0
+    r_01 = r_07 = r_30 = w_01 = w_07 = w_30 = 0.0
     since = until = None
     try:
         data = fetch_json(url, token)
@@ -300,27 +299,37 @@ def query_gcs_ops(project_id, token, days=30, since_time=None):
             method = ts.get("metric", {}).get("labels", {}).get("method", "")
             for p in ts.get("points", []):
                 val = int(p["value"].get("int64Value", 0)) + float(p["value"].get("doubleValue", 0))
-                if val == 0:
-                    continue
-                if method in GCS_READ_METHODS:
-                    read_total  += val
-                elif method in GCS_WRITE_METHODS:
-                    write_total += val
-                else:
-                    read_total  += val
+                if val == 0: continue
+                
                 t_start = p.get("interval", {}).get("startTime")
                 t_end   = p.get("interval", {}).get("endTime")
-                if t_start and (since is None or t_start < since):
-                    since = t_start
-                if t_end   and (until is None or t_end   > until):
-                    until = t_end
+                is_01 = is_07 = False
+                if t_end:
+                    t_end_dt = datetime.strptime(t_end[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                    delta_sec = (now - t_end_dt).total_seconds()
+                    if delta_sec <= 86400:     is_01 = True
+                    if delta_sec <= 7 * 86400: is_07 = True
+                
+                if method in GCS_READ_METHODS:
+                    r_30 += val
+                    if is_01: r_01 += val
+                    if is_07: r_07 += val
+                elif method in GCS_WRITE_METHODS:
+                    w_30 += val
+                    if is_01: w_01 += val
+                    if is_07: w_07 += val
+                else:
+                    r_30 += val
+                    if is_01: r_01 += val
+                    if is_07: r_07 += val
+                    
+                if t_start and (since is None or t_start < since): since = t_start
+                if t_end   and (until is None or t_end   > until): until = t_end
     except Exception:
         pass
-    return read_total, write_total, since, until
-
+    return r_01, r_07, r_30, w_01, w_07, w_30, since, until
 
 def query_generic_api_count(project_id, token, days=30, since_time=None):
-    """未知のGCPサービスが増えても、汎用API消費量メトリクスから自動集計するユニバーサルフォールバック"""
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     start_time = since_time if since_time else (now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
@@ -334,19 +343,24 @@ def query_generic_api_count(project_id, token, days=30, since_time=None):
     url = f"https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries?{params}"
     try:
         data = fetch_json(url, token)
-        total = 0.0
+        tot_01 = tot_07 = tot_30 = 0.0
         since = until = None
         for ts in data.get("timeSeries", []):
             for p in ts.get("points", []):
                 val = int(p["value"].get("int64Value", 0)) + float(p["value"].get("doubleValue", 0))
-                total += val
+                tot_30 += val
                 t_start = p.get("interval", {}).get("startTime")
                 t_end   = p.get("interval", {}).get("endTime")
+                if t_end:
+                    t_end_dt = datetime.strptime(t_end[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                    delta_sec = (now - t_end_dt).total_seconds()
+                    if delta_sec <= 86400:     tot_01 += val
+                    if delta_sec <= 7 * 86400: tot_07 += val
                 if t_start and (since is None or t_start < since): since = t_start
                 if t_end   and (until is None or t_end   > until): until = t_end
-        return total, since, until
+        return tot_01, tot_07, tot_30, since, until
     except Exception:
-        return 0.0, None, None
+        return 0.0, 0.0, 0.0, None, None
 
 
 def scale_matrix(value_30, windows):
@@ -401,12 +415,12 @@ def main():
 
 
     # 30日間合計値を取得 (差分モード時はsnap_since以降だけ取得)
+    raw_01 = {}
+    raw_07 = {}
     raw_30 = {}
     month_counters = {}
-    all_since = []   # 各メトリクスの最初のデータ点を収集
-    all_until = []   # 各メトリクスの最後のデータ点を収集
-
-    fetch_kwargs = {"since_time": snap_since} if snap_mode else {"days": 30}
+    all_since = []
+    all_until = []
 
     # スナップモード時のベースライン読み込み (RRDTool カウンターデンプ方式)
     snap_raw_json = os.environ.get("COST_SNAP_RAW", "")
@@ -414,12 +428,12 @@ def main():
 
     # GCS は read/write をまとめて1回のAPIで取得
     if "gcs_read_ops" in metric_keys or "gcs_write_ops" in metric_keys:
-        gcs_r, gcs_w, gcs_since, gcs_until = query_gcs_ops(project_id, token, days=30)
-        raw_30["gcs_read_ops"]  = gcs_r
-        raw_30["gcs_write_ops"] = gcs_w
+        r_01, r_07, r_30, w_01, w_07, w_30, gcs_since, gcs_until = query_gcs_ops(project_id, token, days=30)
+        raw_01["gcs_read_ops"] = r_01; raw_07["gcs_read_ops"] = r_07; raw_30["gcs_read_ops"] = r_30
+        raw_01["gcs_write_ops"] = w_01; raw_07["gcs_write_ops"] = w_07; raw_30["gcs_write_ops"] = w_30
         if gcs_since: all_since.append(gcs_since)
         if gcs_until: all_until.append(gcs_until)
-        print(f"  ・GCS Read  : {gcs_r:,.0f} ops  |  Write: {gcs_w:,.0f} ops")
+        print(f"  ・GCS Read  : {r_30:,.0f} ops  |  Write: {w_30:,.0f} ops")
 
     # Gemini API / Vertex AI 画像生成枚数の自動集計
     if "image_gen_count" in metric_keys:
@@ -434,61 +448,65 @@ def main():
         except Exception:
             total_img = 0.0
 
+        raw_01["image_gen_count"] = total_img / 30.0
+        raw_07["image_gen_count"] = total_img / 30.0 * 7.0
         raw_30["image_gen_count"] = total_img
         print(f"  ・Gemini API (AI画像生成): {total_img:,.0f} 枚")
 
     if "text_input_tokens" in metric_keys:
+        raw_01["text_input_tokens"] = 0.5 if raw_01.get("image_gen_count", 0) > 0 else 0.0
+        raw_07["text_input_tokens"] = 0.5 if raw_07.get("image_gen_count", 0) > 0 else 0.0
         raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
         print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
-
 
     # その他メトリクス (プロビジョニング型サービスはgcloudリアルタイム検知を優先)
     for mkey in metric_keys:
         if mkey in raw_30:
-            continue   # 上記で取得済み
+            continue
 
-        # プロビジョニング型リソースの即時検出および過去ログからの補正
         if mkey in PROVISIONED_SERVICES:
             live_nodes = check_live_provisioned_nodes(project_id)
             live_cnt = live_nodes.get(mkey, 0.0)
             if live_cnt > 0:
-                val = live_cnt * 24.0 * 30.0  # 月換算ノード/vCPU時間 (720 hours for 1 node)
-                raw_30[mkey] = val
-                print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中 (30日換算 {val:,.0f} 時間)")
+                raw_01[mkey] = live_cnt * 24.0
+                raw_07[mkey] = live_cnt * 168.0
+                raw_30[mkey] = live_cnt * 720.0
+                print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中")
                 continue
-            # ライブで0件（削除済みまたは停止中）の場合は Monitoring API の過去30日および当月(8/1~)全量時系列を精密算出
             if mkey in METRIC_QUERY_MAP:
                 metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-                node_hours_30, node_hours_month, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
-                raw_30[mkey] = node_hours_30
+                v_01, v_07, v_30, node_hours_month, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
+                raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
                 month_counters[mkey] = node_hours_month
                 if m_since: all_since.append(m_since)
                 if m_until: all_until.append(m_until)
-                used_str = f"{node_hours_month:,.2f} ノード時間 (30日累計: {node_hours_30:,.2f}h)" if node_hours_month > 0 else "0 (未使用/削除済み)"
+                used_str = f"{node_hours_month:,.2f} ノード時間 (30日累計: {v_30:,.2f}h)" if node_hours_month > 0 else "0 (未使用/削除済み)"
                 print(f"  ・[Monitoring履歴検出] {mkey}: 当月 {used_str}")
                 continue
 
         if mkey not in METRIC_QUERY_MAP:
             print(f"  ⚠️ [未定義サービス検出フォールバック] {mkey}: service_rules.json に未登録のメトリクスです。汎用API件数から仮試算します。")
-            val, m_since, m_until = query_generic_api_count(project_id, token, days=30)
-            raw_30[mkey] = val
+            v_01, v_07, v_30, m_since, m_until = query_generic_api_count(project_id, token, days=30)
+            raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
             if m_since: all_since.append(m_since)
             if m_until: all_until.append(m_until)
-            used_str = f"{val:,.4f}" if val else "0 (未使用)"
+            used_str = f"{v_30:,.4f}" if v_30 else "0 (未使用)"
             print(f"  ・[汎用自動計測] {mkey}: {used_str}")
             continue
 
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
+        v_01, v_07, v_30, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
 
         # Artifact RegistryやPub/Subなどの Bytes メトリクスを GB (ギガバイト) に変換
-        if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and val > 0:
-            val = val / (1024 ** 3)
+        if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and v_30 > 0:
+            v_01 /= (1024 ** 3)
+            v_07 /= (1024 ** 3)
+            v_30 /= (1024 ** 3)
 
-        raw_30[mkey] = val
+        raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
         if m_since: all_since.append(m_since)
         if m_until: all_until.append(m_until)
-        used_str = f"{val:,.4f}" if val else "0 (未使用)"
+        used_str = f"{v_30:,.4f}" if v_30 else "0 (未使用)"
         print(f"  ・{mkey}: {used_str}")
 
 
@@ -573,6 +591,8 @@ def main():
         "data_since":           data_since,
         "data_until":           data_until,
         "actual_days_measured": actual_days,
+        "raw_01_counters":      raw_01,
+        "raw_07_counters":      raw_07,
         "raw_30_counters":      raw_30,
         "month_counters":       month_counters,
         "time_matrix":          time_matrix,
