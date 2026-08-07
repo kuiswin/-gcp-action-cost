@@ -40,19 +40,19 @@ python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/mai
 
 ---
 
-### 2. 「1操作」ビフォーアフター差分計測モード (`--snap`)
+### 2. 「1操作」ビフォーアフター差分計測モード (自動差分判定)
 
-特定の処理や操作（APIコール、画面操作等）単体でかかった増分コストを計測したい場合に使用します。
+特定の処理や操作（APIコール、画面操作等）単体でかかった増分コストを計測したい場合、**操作前後にまったく同じコマンドを実行するだけ**で自動的に差分モードで動作します：
 
 ```bash
-# 【Step 1】 実行前の状態をスナップショット保存
-python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py) -s -- --snap
+# 【Step 1】 操作前（1回目実行）：現在のベースライン利用状態を自動スナップショット保存
+python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py)
 
 # 【Step 2】 計測したい操作（Webアクセス、API実行、投稿など）を実施
 # （※ Monitoring API へのデータ反映のため 2〜3分間 待ちます）
 
-# 【Step 3】 再度実行：前回スナップ以降の「1操作分の差分コスト」をピンポイント出力！
-python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py) -s -- --snap
+# 【Step 3】 操作後（2回目実行）：直前スナップ以降の「1操作分の差分コスト」をピンポイント出力！
+python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py)
 ```
 
 ---
@@ -66,7 +66,7 @@ cd -gcp-action-cost
 # 現在の gcloud 設定プロジェクトをプロファイリング
 python3 calc_cost.py
 
-# ビフォーアフター差分計測モード
+# 差分計測モード (操作前後に2回叩くだけで自動判定 / --snap オプション指定も可能)
 python3 calc_cost.py --snap
 
 # 特定の GCP プロジェクト ID を指定して実行
