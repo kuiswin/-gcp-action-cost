@@ -261,7 +261,46 @@ def main():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"\n💾 保持ファイル: {OUTPUT_FILE}")
+    # --------------------------------------------------------------------------
+    # ユーザーフレンドリーな 01 Day / 07 Days / 30 Days サマリーテーブル出力
+    # --------------------------------------------------------------------------
+    print("\n" + "=" * 115)
+    print("📊 期間別 (01 Day / 07 Days / 30 Days) リソース消費量・定価・無料枠・最終確定請求額サマリー")
+    print("=" * 115)
+
+    for row in month_rows:
+        label = row.get("リソース", "")
+        used_30 = row.get("30日累計消費量", "0")
+        gross_30_str = row.get("インフラ定価 (控除前)", "￥0")
+        free_limit = row.get("無料枠上限", "-")
+        billed_30_str = row.get("確定請求 (控除後)", "￥0")
+
+        # 定価と確定請求の数値抽出
+        try:
+            g30 = float(gross_30_str.replace("￥", "").replace(",", "").split()[0]) if ("￥" in gross_30_str and "未使用" not in gross_30_str) else 0.0
+        except Exception:
+            g30 = 0.0
+
+        try:
+            b30 = float(billed_30_str.replace("￥", "").replace(",", "").split()[0]) if ("￥" in billed_30_str and "完全無料" not in billed_30_str and "未使用" not in billed_30_str) else 0.0
+        except Exception:
+            b30 = 0.0
+
+        g01 = g30 / 30.0
+        b01 = b30 / 30.0
+        g07 = g30 / 30.0 * 7.0
+        b07 = b30 / 30.0 * 7.0
+
+        print(f"\n★ 【サービス名】 {label}")
+        print("-" * 115)
+        print(f" {'期間':<10} │ {'30日対比使用量':<22} │ {'定価 (控除前)':<18} │ {'無料枠上限定義':<24} │ {'最終確定請求額 (控除後)':<20}")
+        print("-" * 115)
+        print(f" 01 Day      │ 1/30 推算量            │ ￥{g01:<16.2f} │ {free_limit:<24} │ ￥{b01:<18.2f}")
+        print(f" 07 Days     │ 7/30 推算量            │ ￥{g07:<16.2f} │ {free_limit:<24} │ ￥{b07:<18.2f}")
+        print(f" 30 Days(1M) │ {used_30:<22} │ {gross_30_str:<18} │ {free_limit:<24} │ {billed_30_str:<20}")
+
+    print("\n" + "=" * 115)
+    print(f"💾 保持ファイル: {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":
