@@ -139,7 +139,7 @@ def main():
                 gross = value * price_jpy
 
             total_gross += gross
-            gross_str = f"￥{gross:,.4f}" if gross > 0 else "￥0 (未使用)"
+            gross_str = f"￥{gross:09.4f}"
 
             if free_limit > 0:
                 over    = max(0.0, display_value - free_limit)
@@ -155,7 +155,7 @@ def main():
                     "無料枠残量":       fmt_val(rem, unit),
                     "残量率":           f"{pct_rem:.2f}%",
                     "超過消費量":       fmt_val(over, unit),
-                    "確定請求 (控除後)": "￥0 (完全無料)" if billed == 0 else f"￥{billed:,.4f}",
+                    "確定請求 (控除後)": f"￥{billed:09.4f}",
                 }
             else:
                 billed = gross
@@ -169,7 +169,7 @@ def main():
                     "無料枠残量":       "従量制枠なし",
                     "残量率":           "N/A",
                     "超過消費量":       fmt_val(display_value, unit),
-                    "確定請求 (控除後)": "￥0 (未使用)" if display_value == 0 else f"￥{billed:,.4f}",
+                    "確定請求 (控除後)": f"￥{billed:09.4f}",
                 }
 
             rows.append(row)
@@ -192,7 +192,7 @@ def main():
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
     month_name = f"{now.month}月1日〜現在"
-    table2_title = f"【表②: 当月分 (1M / {month_name}) リソース消費 ＆ 確定請求額明細】"
+    table2_title = f"【表②: 当月分 ({month_name}) リソース消費 ＆ 確定請求額明細】"
     month_rows, month_billed_all, month_gross_all = calculate_subtraction_rows(target_counters, is_diff_mode=False)
     print(f"\n{table2_title}")
     print("※注記: 本ツールは標準単価（Standardエディション / デフォルトリージョン等）での概算プロファイラです。")
@@ -242,11 +242,11 @@ def main():
 
         scale_map = {"1_minute": 1/43200, "10_minutes": 10/43200, "1_hour": 60/43200, "1_day": 1440/43200, "30_days": 1.0}
         net_billed = month_billed_all * scale_map.get(label, 0)
-        net_str = f"￥{net_billed:.6f}" if net_billed > 0 else "￥0 (無料枠内)"
+        net_str = f"￥{net_billed:09.4f}"
 
         time_matrix_out[disp_label] = {
             "明細":         detail if detail else [{"サービス": "(消費なし)"}],
-            "小計":         f"{gross:.6f} 円",
+            "小計":         f"￥{gross:09.4f}",
             "確定請求額":   net_str,
         }
 
@@ -289,12 +289,12 @@ def main():
 
         # 定価と確定請求の数値抽出
         try:
-            g30 = float(gross_30_str.replace("￥", "").replace(",", "").split()[0]) if ("￥" in gross_30_str and "未使用" not in gross_30_str) else 0.0
+            g30 = float(gross_30_str.replace("￥", "").replace(",", "").split()[0])
         except Exception:
             g30 = 0.0
 
         try:
-            b30 = float(billed_30_str.replace("￥", "").replace(",", "").split()[0]) if ("￥" in billed_30_str and "完全無料" not in billed_30_str and "未使用" not in billed_30_str) else 0.0
+            b30 = float(billed_30_str.replace("￥", "").replace(",", "").split()[0])
         except Exception:
             b30 = 0.0
 
@@ -303,13 +303,16 @@ def main():
         g07 = g30 / 30.0 * 7.0
         b07 = b30 / 30.0 * 7.0
 
+        # 表のレイアウト崩れを防ぐため、文字列の長さを整える
+        used_30_clean = used_30.split(" (経過")[0]
+
         print(f"\n★ 【サービス名】 {label}")
         print("-" * 115)
-        print(f" {'期間':<10} │ {'30日対比使用量':<22} │ {'定価 (控除前)':<18} │ {'無料枠上限定義':<24} │ {'最終確定請求額 (控除後)':<20}")
+        print(f" {'期間':<10} │ {'消費量':<26} │ {'定価 (控除前)':<16} │ {'無料枠上限定義':<26} │ {'最終確定額 (控除後)':<16}")
         print("-" * 115)
-        print(f" 01 Day      │ 1/30 推算量            │ ￥{g01:<16.2f} │ {free_limit:<24} │ ￥{b01:<18.2f}")
-        print(f" 07 Days     │ 7/30 推算量            │ ￥{g07:<16.2f} │ {free_limit:<24} │ ￥{b07:<18.2f}")
-        print(f" 30 Days(1M) │ {used_30:<22} │ {gross_30_str:<18} │ {free_limit:<24} │ {billed_30_str:<20}")
+        print(f" {'01 Day':<10} │ {'1/30 推算量':<26} │ ￥{g01:09.4f}      │ {free_limit:<26} │ ￥{b01:09.4f}")
+        print(f" {'07 Days':<10} │ {'7/30 推算量':<26} │ ￥{g07:09.4f}      │ {free_limit:<26} │ ￥{b07:09.4f}")
+        print(f" {'30 Days':<10} │ {used_30_clean:<26} │ ￥{g30:09.4f}      │ {free_limit:<26} │ ￥{b30:09.4f}")
 
     print("\n" + "=" * 115)
     print(f"💾 保持ファイル: {OUTPUT_FILE}")
