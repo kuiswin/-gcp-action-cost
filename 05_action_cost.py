@@ -316,7 +316,7 @@ def main():
         print(f" {ljust_jp('期間', 10)} │ {ljust_jp('消費量', 26)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('最終確定額 (控除後)', 16)}")
         print("-" * 115)
         print(f" {ljust_jp('01 Day', 10)} │ {ljust_jp('1/30 推算量', 26)} │ ￥{g01:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b01:09.4f}")
-        print(f" {ljust_jp('07 Days', 10)} │ {ljust_jp('7/30 推算量', 26)} │ ￥{g07:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b01:09.4f}")
+        print(f" {ljust_jp('07 Days', 10)} │ {ljust_jp('7/30 推算量', 26)} │ ￥{g07:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b07:09.4f}")
         print(f" {ljust_jp('30 Days', 10)} │ {ljust_jp(used_30_clean, 26)} │ ￥{g30:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b30:09.4f}")
 
     print("\n" + "=" * 115)
