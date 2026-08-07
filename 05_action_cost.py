@@ -303,16 +303,21 @@ def main():
         g07 = g30 / 30.0 * 7.0
         b07 = b30 / 30.0 * 7.0
 
-        # 表のレイアウト崩れを防ぐため、文字列の長さを整える
+        # 全角文字（日本語）を2文字分としてカウントし、正確に左揃えパディングするヘルパー関数
+        def ljust_jp(text, width):
+            text = str(text)
+            text_width = sum(2 if ord(c) > 0x255 else 1 for c in text)
+            return text + " " * max(0, width - text_width)
+
         used_30_clean = used_30.split(" (経過")[0]
 
         print(f"\n★ 【サービス名】 {label}")
         print("-" * 115)
-        print(f" {'期間':<10} │ {'消費量':<26} │ {'定価 (控除前)':<16} │ {'無料枠上限定義':<26} │ {'最終確定額 (控除後)':<16}")
+        print(f" {ljust_jp('期間', 10)} │ {ljust_jp('消費量', 26)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('最終確定額 (控除後)', 16)}")
         print("-" * 115)
-        print(f" {'01 Day':<10} │ {'1/30 推算量':<26} │ ￥{g01:09.4f}      │ {free_limit:<26} │ ￥{b01:09.4f}")
-        print(f" {'07 Days':<10} │ {'7/30 推算量':<26} │ ￥{g07:09.4f}      │ {free_limit:<26} │ ￥{b07:09.4f}")
-        print(f" {'30 Days':<10} │ {used_30_clean:<26} │ ￥{g30:09.4f}      │ {free_limit:<26} │ ￥{b30:09.4f}")
+        print(f" {ljust_jp('01 Day', 10)} │ {ljust_jp('1/30 推算量', 26)} │ ￥{g01:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b01:09.4f}")
+        print(f" {ljust_jp('07 Days', 10)} │ {ljust_jp('7/30 推算量', 26)} │ ￥{g07:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b01:09.4f}")
+        print(f" {ljust_jp('30 Days', 10)} │ {ljust_jp(used_30_clean, 26)} │ ￥{g30:09.4f}       │ {ljust_jp(free_limit, 26)} │ ￥{b30:09.4f}")
 
     print("\n" + "=" * 115)
     print(f"💾 保持ファイル: {OUTPUT_FILE}")

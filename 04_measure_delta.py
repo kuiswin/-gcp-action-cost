@@ -480,6 +480,11 @@ def main():
 
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
         val, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
+
+        # Artifact RegistryやPub/Subなどの Bytes メトリクスを GB (ギガバイト) に変換
+        if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and val > 0:
+            val = val / (1024 ** 3)
+
         raw_30[mkey] = val
         if m_since: all_since.append(m_since)
         if m_until: all_until.append(m_until)
