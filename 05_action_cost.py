@@ -72,10 +72,10 @@ import unicodedata
 
 def get_disp_width(text):
     """絵文字・全角文字・半角文字の端末表示幅を正確に算出"""
+    clean_text = str(text).replace('\ufe0f', '').replace('\ufe0e', '')
     w = 0
-    for c in str(text):
-        east_asian = unicodedata.east_asian_width(c)
-        if east_asian in ('F', 'W', 'A'):
+    for c in clean_text:
+        if ord(c) in (0x2601, 0x26a1, 0x1f4be, 0x1f3a1, 0x1f4e3, 0x1f4e6, 0x1f4b0, 0x1f3c6, 0x1f6a8, 0x274c, 0x1f53b) or unicodedata.east_asian_width(c) in ('F', 'W', 'A'):
             w += 2
         else:
             w += 1
@@ -420,7 +420,7 @@ def main():
     print("\n" + "=" * 122)
     print("🏆 【本ハンズオン 1回あたりの完全確定原価プロファイル】 (データアクセス監査ログ ＆ リソース実測エビデンス)")
     print("=" * 122)
-    print(f"  {rjust_jp('実測数量 / 回数', 20)} │ {ljust_jp('区分', 20)} │ {ljust_jp('サービス・リソース名', 36)} │ {ljust_jp('確定金額 (無料枠考慮後)', 22)}")
+    print(f"  {ljust_jp('確定金額 (無料枠考慮後)', 26)} │ {rjust_jp('実測数量 / 回数', 20)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 36)}")
     print("-" * 122)
 
     profile_items = []
@@ -471,7 +471,7 @@ def main():
         else:
             cost_note = "￥  0.0000  (無料枠内)"
 
-        print(f"  {rjust_jp(item['disp_qty'], 20)} │ {ljust_jp(item['cat'], 20)} │ {ljust_jp(item['label'], 36)} │ {cost_note}")
+        print(f"  {ljust_jp(cost_note, 26)} │ {rjust_jp(item['disp_qty'], 20)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 36)}")
 
     print("-" * 122)
     if total_hands_on_cost == 0:
