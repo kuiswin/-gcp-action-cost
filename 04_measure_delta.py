@@ -489,45 +489,6 @@ def main():
         if gcs_until: all_until.append(gcs_until)
         print(f"  ・GCS Read  : {r_30:,.0f} ops  |  Write: {w_30:,.0f} ops")
 
-    # Gemini API / Vertex AI 画像生成枚数の自動集計
-    if "image_gen_count" in metric_keys:
-        total_img = 0.0
-        try:
-            target_buckets = []
-            env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
-            if env_bucket:
-                target_buckets.append(env_bucket)
-            else:
-                b_res = subprocess.run(
-                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls"],
-                    capture_output=True, text=True
-                )
-                for line in b_res.stdout.splitlines():
-                    b_url = line.strip()
-                    if "media" in b_url or "cms" in b_url:
-                        target_buckets.append(b_url)
-
-            for b_url in target_buckets:
-                res = subprocess.run(
-                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"{b_url.rstrip('/')}/**"],
-                    capture_output=True, text=True
-                )
-                lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
-                total_img += float(len(lines))
-        except Exception:
-            total_img = 0.0
-
-        raw_01["image_gen_count"] = total_img / 30.0
-        raw_07["image_gen_count"] = total_img / 30.0 * 7.0
-        raw_30["image_gen_count"] = total_img
-        print(f"  ・Gemini API (AI画像生成): {total_img:,.0f} 枚")
-
-    if "text_input_tokens" in metric_keys:
-        raw_01["text_input_tokens"] = 0.5 if raw_01.get("image_gen_count", 0) > 0 else 0.0
-        raw_07["text_input_tokens"] = 0.5 if raw_07.get("image_gen_count", 0) > 0 else 0.0
-        raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
-        print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
-
     # その他メトリクス (8並列マルチスレッドで Monitoring API を同時一括照会)
     remaining_keys = [mk for mk in metric_keys if mk not in raw_30]
     live_nodes = check_live_provisioned_nodes(project_id) if any(k in PROVISIONED_SERVICES for k in remaining_keys) else {}
