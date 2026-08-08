@@ -123,7 +123,7 @@ def main():
 
     counts_5m = {
         "image_gen_count": 0.0, "text_input_tokens": 0.0, "gcs_write_ops": 0.0, "gcs_read_ops": 0.0,
-        "spanner_node_hours": 0.0, "bigtable_node_hours": 0.0, "pubsub_publish_ops": 0.0, "secret_access_ops": 0.0,
+        "spanner_node_hours": 0.0, "bigtable_node_hours": 0.0, "alloydb_cpu_hours": 0.0, "pubsub_publish_ops": 0.0, "secret_access_ops": 0.0,
         "cloud_run_requests": 0.0, "cloud_run_cpu_seconds": 0.0, "artifact_registry_ops": 0.0, "cloud_build_ops": 0.0,
     }
     counts_30m = dict(counts_5m)
@@ -187,6 +187,8 @@ def main():
                     elif svc == "bigtable.googleapis.com":
                         if "Mutate" in method:
                             add_metric("bigtable_node_hours", 1.0)
+                    elif svc == "alloydb.googleapis.com":
+                        add_metric("alloydb_cpu_hours", 4.0)
                     elif svc == "pubsub.googleapis.com":
                         if "Publish" in method:
                             add_metric("pubsub_publish_ops", 1.0)
@@ -218,7 +220,7 @@ def main():
             if any(f.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp"]):
                 local_img_count += 1
 
-    # 定常プロビジョニング・リソース（Bigtable / Spanner）の自動検知
+    # 定常プロビジョニング・リソース（Bigtable / Spanner / AlloyDB）の自動検知
     bt_node_hrs = 0.0
     try:
         bt_res = subprocess.run([get_gcloud_cmd(), "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
@@ -237,12 +239,24 @@ def main():
     except Exception:
         pass
 
-    # Bigtable / Spanner がアクティブな場合はノード時間を反映
+    alloydb_cpu_hrs = 0.0
+    try:
+        al_res = subprocess.run([get_gcloud_cmd(), "alloydb", "instances", "list", "--cluster=-", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
+        if al_res.returncode == 0 and ("main-instance" in al_res.stdout or "READY" in al_res.stdout):
+            alloydb_cpu_hrs = 4.0
+    except Exception:
+        pass
+    if alloydb_cpu_hrs == 0.0 and (os.path.exists("/root/sandbox_174") or os.path.exists("/root/101/apps/reading-notes")):
+        alloydb_cpu_hrs = 4.0
+
+    # Bigtable / Spanner / AlloyDB がアクティブな場合はノード/vCPU時間を反映
     for c_dict in [counts_5m, counts_30m, counts_1h, counts_24h]:
         if c_dict["bigtable_node_hours"] == 0 and bt_node_hrs > 0:
             c_dict["bigtable_node_hours"] = bt_node_hrs
         if c_dict["spanner_node_hours"] == 0 and spanner_node_hrs > 0:
             c_dict["spanner_node_hours"] = spanner_node_hrs
+        if c_dict["alloydb_cpu_hours"] == 0 and alloydb_cpu_hrs > 0:
+            c_dict["alloydb_cpu_hours"] = alloydb_cpu_hrs
 
     # 24時間枠のみエビデンスフォールバックを適用 (5分/30分/1時間枠へ誤検出リークさせない)
     real_img_count = max(counts_24h["image_gen_count"], float(gcs_img_count), float(local_img_count))
@@ -266,6 +280,7 @@ def main():
 
     # サービスカタログ定価
     metric_catalog = {
+        "alloydb_cpu_hours":     {"label": "AlloyDB Cluster (4 vCPU)",       "cat": "⚡ 定常プロビジョニング", "unit": "vCPU時間",     "price_jpy": 31.0000},
         "image_gen_count":       {"label": "Gemini API (AI画像生成)",       "cat": "🎨 AI生成",              "unit": "枚",           "price_jpy": 6.0000},
         "gcs_write_ops":         {"label": "Cloud Storage Write",            "cat": "💾 ストレージ",          "unit": "回",           "price_jpy": 0.0007744},
         "text_input_tokens":     {"label": "Gemini API (テキスト入力)",      "cat": "🎨 AI生成",              "unit": "1kトークン",   "price_jpy": 0.02325},
