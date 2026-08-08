@@ -76,8 +76,8 @@
       "category": "metered"
     },
     "image_gen_count": {
-      "metric_type": "aiplatform.googleapis.com/publisher/model/predict/request_count",
-      "resource_type": "aiplatform.googleapis.com/Endpoint",
+      "metric_type": "serviceruntime.googleapis.com/api/request_count",
+      "resource_type": "consumed_api",
       "category": "metered"
     },
     "text_input_tokens": {
