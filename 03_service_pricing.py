@@ -21,11 +21,13 @@ RAW_BASE_URL = "https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/
 FREE_TIER_FILENAME = "free_tier.json"
 
 def load_free_tier():
-    """GitHubから free_tier.json を取得。失敗したらローカルのファイルを使う。"""
-    # まずローカルの同ディレクトリを確認
+    """ローカルの free_tier.json を最優先参照。失敗したら GitHub から取得。"""
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
     local_candidates = [
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), FREE_TIER_FILENAME),
+        os.path.join(curr_dir, FREE_TIER_FILENAME),
+        os.path.join(os.path.dirname(curr_dir), FREE_TIER_FILENAME),
         os.path.join(os.getcwd(), FREE_TIER_FILENAME),
+        "/root/gcp-action-cost/free_tier.json"
     ]
     for path in local_candidates:
         if os.path.exists(path):
