@@ -54,7 +54,7 @@ def build_metric_catalog(pricing_data):
             else:
                 price_key = meta.get("price_key", "")
                 price_jpy = unit_prices.get(price_key, 0.0)
-                parsed_editions = [{"code": "--", "price_jpy": price_jpy, "is_default": True}]
+                parsed_editions = [{"code": "ST", "price_jpy": price_jpy, "is_default": True}]
 
             catalog[metric_key] = {
                 "label":              meta.get("label", metric_key),
@@ -147,7 +147,7 @@ def main():
                 code      = ed["code"]
                 is_def    = ed["is_default"]
 
-                disp_label = f"{label} ({code})" if code != "--" else label
+                disp_label = f"{label} ({code})" if len(meta["editions"]) > 1 else label
                 gross = display_value * price_jpy
 
                 if is_def:
