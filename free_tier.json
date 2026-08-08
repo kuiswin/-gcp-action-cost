@@ -111,6 +111,13 @@
           "price_key": "message_ingestion_per_gb_jpy",
           "free_limit": 10.0,
           "free_limit_display": "10 GB/月"
+        },
+        "pubsub_push_requests": {
+          "label": "Pub/Sub Push通信回数",
+          "unit": "回",
+          "price_key": "zero_price",
+          "free_limit": 0.0,
+          "free_limit_display": "監視専用 (異常検知用)"
         }
       }
     },

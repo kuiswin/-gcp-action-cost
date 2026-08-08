@@ -339,7 +339,22 @@ def main():
             print(f" {code:<2} │ {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_07_disp, 26)}")
             print(f" {code:<2} │ {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_30_disp, 26)}")
 
-    print("\n" + "=" * 115)
+    # --------------------------------------------------------------------------
+    # 🚨 放置ゾンビリソース警告アラートの表示
+    # --------------------------------------------------------------------------
+    zombies = delta_data.get("zombie_resources", [])
+    if zombies:
+        print("\n" + "🚨" * 60)
+        print("【重大警告】 放置された未解放リソース（ゾンビリソース）を検知しました！")
+        print("🚨" * 60)
+        print("以下のリソースがプロジェクト内に残存しています。意図せず放置している場合、")
+        print("バックグラウンドでの無駄なPush通信やエラーリトライを引き起こす原因になります。")
+        print("直ちに用途を確認し、不要であれば gcloud CLI 等で削除してください！\n")
+        for z in zombies:
+            print(f"  ❌ {z}")
+        print("\n" + "🚨" * 60)
+
+    print("\n" + "=" * 122)
     print(f"💾 保持ファイル: {OUTPUT_FILE}")
 
 
