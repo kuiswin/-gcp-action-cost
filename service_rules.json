@@ -74,6 +74,16 @@
       "metric_type": "artifactregistry.googleapis.com/repository/storage_used",
       "resource_type": "artifactregistry_repository",
       "category": "metered"
+    },
+    "image_gen_count": {
+      "metric_type": "aiplatform.googleapis.com/publisher/model/predict/request_count",
+      "resource_type": "aiplatform.googleapis.com/Endpoint",
+      "category": "metered"
+    },
+    "text_input_tokens": {
+      "metric_type": "aiplatform.googleapis.com/generate_content/input_token_count",
+      "resource_type": "aiplatform.googleapis.com/Endpoint",
+      "category": "metered"
     }
   },
   "provisioned_services": [
