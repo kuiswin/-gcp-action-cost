@@ -387,10 +387,48 @@ def main():
                     diff_disp = f"{diff_val:.4f} {unit} (継続 {snap_elapsed_seconds:.0f}秒 × {live_nodes:.0f}ノード/台)"
                 elif pat_code == "artifact":
                     diff_disp = f"{diff_val:.0f} {unit} (実成果物・増分検知)" if unit == "枚" else f"{diff_val:.2f} {unit}"
-                else:
-                    diff_disp = fmt_val(diff_val, unit)
-
                 print(f"  ・{ljust_jp(label, 32)}: 新規増分 {diff_disp}")
+
+    # --------------------------------------------------------------------------
+    # 🏆 【本ハンズオン 1回あたりの完全確定原価プロファイル】
+    # --------------------------------------------------------------------------
+    print("\n" + "=" * 122)
+    print("🏆 【本ハンズオン 1回あたりの完全確定原価プロファイル】 (データアクセス監査ログ ＆ リソース実測エビデンス)")
+    print("=" * 122)
+    print(f"  {ljust_jp('実測数量 / 回数', 18)} │ {ljust_jp('区分', 16)} │ {ljust_jp('サービス・リソース名', 35)} │ {ljust_jp('確定金額 (無料枠考慮後)', 22)}")
+    print("-" * 122)
+
+    total_hands_on_cost = 0.0
+    for mkey, meta in metric_catalog.items():
+        val_30 = raw_30_counters.get(mkey, 0.0)
+        unit = meta["unit"]
+        price_jpy = meta.get("price_jpy", 0.0)
+        free_limit = meta.get("free_limit", 0.0)
+
+        billed_cost = max(0.0, val_30 - free_limit) * price_jpy if free_limit > 0 else val_30 * price_jpy
+        total_hands_on_cost += billed_cost
+
+        if mkey in ["image_gen_count", "text_input_tokens"]:
+            cat = "🎨 AI生成"
+        elif mkey in PROVISIONED_SERVICES:
+            cat = "⚡ 定常プロビジョニング"
+        elif mkey in ["gcs_read_ops", "gcs_write_ops"]:
+            cat = "💾 ストレージ"
+        elif mkey in ["cpu_seconds", "request_count", "function_invocations"]:
+            cat = "☁️ アプリ実行"
+        else:
+            cat = "📦 インフラ・ログ"
+
+        disp_qty = fmt_val(val_30, unit)
+        cost_note = f"￥{billed_cost:09.4f}  (課金発生)" if billed_cost > 0 else "￥0.0000   (無料枠内)"
+        print(f"  {ljust_jp(disp_qty, 18)} │ {ljust_jp(cat, 16)} │ {ljust_jp(meta['label'], 35)} │ {cost_note}")
+
+    print("-" * 122)
+    if total_hands_on_cost == 0:
+        print(f" 💰 本ハンズオン1回あたりの合計確定原価 (Total Billed Cost): 【 ￥0 (完全無料枠内) 】")
+    else:
+        print(f" 💰 本ハンズオン1回あたりの合計確定原価 (Total Billed Cost): ￥{total_hands_on_cost:,.4f} / 回")
+    print("=" * 122)
 
     # --------------------------------------------------------------------------
     # 🚨 放置ゾンビリソース警告アラートの表示
