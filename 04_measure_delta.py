@@ -545,8 +545,8 @@ def main():
             if m_until: all_until.append(m_until)
             if log_msg: print(log_msg)
 
-    # GCSメディアバケットフォールバック (Monitoring API が 0 の場合、GCSメディアバケット内の生成画像をフォールバック計上)
-    if "image_gen_count" in metric_keys and raw_30.get("image_gen_count", 0.0) == 0.0:
+    # GCS CMS メディアバケット成果物直接ピンポイント検知 (Gemini AI画像生成 ＆ テキスト入力)
+    if "image_gen_count" in metric_keys:
         total_gcs_img = 0.0
         try:
             target_buckets = []
@@ -573,16 +573,20 @@ def main():
         except Exception:
             total_gcs_img = 0.0
 
-        if total_gcs_img > 0:
-            raw_01["image_gen_count"] = total_gcs_img / 30.0
-            raw_07["image_gen_count"] = total_gcs_img / 30.0 * 7.0
-            raw_30["image_gen_count"] = total_gcs_img
-            print(f"  ・[GCS実像成果物検出フォールバック] image_gen_count: {total_gcs_img:,.0f} 枚")
+        # Monitoring API の結果に関わらず、実像成果物が存在すれば確実に優先適用
+        if total_gcs_img > 0 or raw_30.get("image_gen_count", 0.0) == 0.0:
+            final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0))
+            if final_img_cnt > 0:
+                raw_01["image_gen_count"] = 0.0
+                raw_07["image_gen_count"] = final_img_cnt
+                raw_30["image_gen_count"] = final_img_cnt
+                print(f"  ・[GCS実像成果物ピンポイント検出] image_gen_count: {final_img_cnt:,.0f} 枚")
 
-            if "text_input_tokens" in metric_keys and raw_30.get("text_input_tokens", 0.0) == 0.0:
-                raw_01["text_input_tokens"] = 0.5
-                raw_07["text_input_tokens"] = 0.5
-                raw_30["text_input_tokens"] = 0.5
+                if "text_input_tokens" in metric_keys:
+                    raw_01["text_input_tokens"] = 0.0
+                    raw_07["text_input_tokens"] = 0.5
+                    raw_30["text_input_tokens"] = 0.5
+                    print(f"  ・[GCS連動プロンプト推算ピンポイント検出] text_input_tokens: 0.50 1kトークン")
                 print(f"  ・[GCS連動プロンプト推算フォールバック] text_input_tokens: 0.50 1kトークン")
 
 
