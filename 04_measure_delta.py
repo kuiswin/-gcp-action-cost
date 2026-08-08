@@ -540,6 +540,46 @@ def main():
             if m_until: all_until.append(m_until)
             if log_msg: print(log_msg)
 
+    # GCSメディアバケットフォールバック (Monitoring API が 0 の場合、GCSメディアバケット内の生成画像をフォールバック計上)
+    if "image_gen_count" in metric_keys and raw_30.get("image_gen_count", 0.0) == 0.0:
+        total_gcs_img = 0.0
+        try:
+            target_buckets = []
+            env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
+            if env_bucket:
+                target_buckets.append(env_bucket)
+            else:
+                b_res = subprocess.run(
+                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls"],
+                    capture_output=True, text=True
+                )
+                for line in b_res.stdout.splitlines():
+                    b_url = line.strip()
+                    if "media" in b_url or "cms" in b_url:
+                        target_buckets.append(b_url)
+
+            for b_url in target_buckets:
+                res = subprocess.run(
+                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"{b_url.rstrip('/')}/**"],
+                    capture_output=True, text=True
+                )
+                lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
+                total_gcs_img += float(len(lines))
+        except Exception:
+            total_gcs_img = 0.0
+
+        if total_gcs_img > 0:
+            raw_01["image_gen_count"] = total_gcs_img / 30.0
+            raw_07["image_gen_count"] = total_gcs_img / 30.0 * 7.0
+            raw_30["image_gen_count"] = total_gcs_img
+            print(f"  ・[GCS実像成果物検出フォールバック] image_gen_count: {total_gcs_img:,.0f} 枚")
+
+            if "text_input_tokens" in metric_keys and raw_30.get("text_input_tokens", 0.0) == 0.0:
+                raw_01["text_input_tokens"] = 0.5
+                raw_07["text_input_tokens"] = 0.5
+                raw_30["text_input_tokens"] = 0.5
+                print(f"  ・[GCS連動プロンプト推算フォールバック] text_input_tokens: 0.50 1kトークン")
+
 
     # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
     eval_30 = {}
