@@ -341,6 +341,12 @@ def main():
             print(f" {code:<2} │ {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_07_disp, 26)}")
             print(f" {code:<2} │ {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_30_disp, 26)}")
 
+    PATTERN_TITLES = {
+        "cumulative":  "🔹 【パターン①：従量・サーバーレス型】 (呼び出し・実行イベントの単調増加カウンター)",
+        "provisioned": "🔹 【パターン②：常時プロビジョニング型】 (常時起動ノード・インスタンス時間積算)",
+        "artifact":    "🔹 【パターン③：AI成果物・ダイレクト実測型】 (実像ファイル・レスポンス実数検知)",
+    }
+
     # --------------------------------------------------------------------------
     # 【表②】 直前スナップショットからの差分 (Diff) モニタリング表示 (差分モード時のみ)
     # --------------------------------------------------------------------------
@@ -348,21 +354,43 @@ def main():
         snap_since_str = delta_data.get("snap_since", "直前の計測点")
         print("\n" + "=" * 122)
         print(f"⚡ 【表②】 直前スナップショット ({snap_since_str}) からの操作差分 (Diff) モニタリング")
-        print(f" (注: 前回計測からの経過時間: {snap_elapsed_seconds:.0f}秒 / この間に新たに行われた増分リソース消費のみを表示しています)")
+        print(f" (注: 前回計測からの経過時間: {snap_elapsed_seconds:.0f}秒 / リソース型別に最適化された差分計測ロジックを適用中)")
         print("=" * 122)
 
         eval_counters = delta_data.get("counters", {})
-        for mkey, meta in metric_catalog.items():
-            label = meta["label"]
-            unit = meta["unit"]
-            diff_val = eval_counters.get(mkey, 0.0)
+        metric_patterns = delta_data.get("metric_patterns", {})
 
-            if mkey in PROVISIONED_SERVICES and snap_elapsed_seconds > 0:
-                live_nodes = diff_val / 720.0
-                diff_val = live_nodes * (snap_elapsed_seconds / 3600.0)
+        def get_pattern(mkey):
+            if mkey in metric_patterns:
+                return metric_patterns[mkey]
+            if mkey in PROVISIONED_SERVICES:
+                return "provisioned"
+            if mkey in ["image_gen_count", "text_input_tokens"]:
+                return "artifact"
+            return "cumulative"
 
-            diff_disp = fmt_val(diff_val, unit)
-            print(f"  ・{ljust_jp(label, 30)}: 新規増分 {diff_disp}")
+        for pat_code, pat_title in PATTERN_TITLES.items():
+            pat_items = [(mk, meta) for mk, meta in metric_catalog.items() if get_pattern(mk) == pat_code]
+            if not pat_items:
+                continue
+
+            print(f"\n{pat_title}")
+            print("-" * 122)
+            for mkey, meta in pat_items:
+                label = meta["label"]
+                unit = meta["unit"]
+                diff_val = eval_counters.get(mkey, 0.0)
+
+                if pat_code == "provisioned" and snap_elapsed_seconds > 0:
+                    live_nodes = diff_val / 720.0
+                    diff_val = live_nodes * (snap_elapsed_seconds / 3600.0)
+                    diff_disp = f"{diff_val:.4f} {unit} (継続 {snap_elapsed_seconds:.0f}秒 × {live_nodes:.0f}ノード/台)"
+                elif pat_code == "artifact":
+                    diff_disp = f"{diff_val:.0f} {unit} (実成果物・増分検知)" if unit == "枚" else f"{diff_val:.2f} {unit}"
+                else:
+                    diff_disp = fmt_val(diff_val, unit)
+
+                print(f"  ・{ljust_jp(label, 32)}: 新規増分 {diff_disp}")
 
     # --------------------------------------------------------------------------
     # 🚨 放置ゾンビリソース警告アラートの表示
