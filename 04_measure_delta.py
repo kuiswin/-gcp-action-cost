@@ -550,6 +550,7 @@ def main():
         total_gcs_img = 0.0
         try:
             target_buckets = [
+                f"gs://{project_id}-media-cms/",
                 f"gs://{project_id}-cms-media-170/",
                 f"gs://{project_id}-cms-media/",
                 f"gs://{project_id}-media/",
@@ -558,8 +559,23 @@ def main():
             if env_bucket:
                 target_buckets.insert(0, env_bucket)
 
-            # 1. GCP Storage REST API 経由で高速・直接オブジェクト件数を取得 (CLI依存なし)
+            # 1. GCP Storage REST API 経由でプロジェクト内全バケットを自動検知 ＆ 直接オブジェクト件数を取得
             if token:
+                # プロジェクト内全バケットの動的取得
+                try:
+                    b_list_url = f"https://storage.googleapis.com/storage/v1/b?project={project_id}"
+                    b_req = urllib.request.Request(b_list_url, headers={"Authorization": f"Bearer {token}"})
+                    with urllib.request.urlopen(b_req, timeout=5) as b_resp:
+                        b_data = json.loads(b_resp.read().decode("utf-8"))
+                        for b_item in b_data.get("items", []):
+                            b_name = b_item.get("name", "")
+                            if "media" in b_name or "cms" in b_name or "170" in b_name:
+                                b_url_candidate = f"gs://{b_name}/"
+                                if b_url_candidate not in target_buckets:
+                                    target_buckets.append(b_url_candidate)
+                except Exception:
+                    pass
+
                 for b_url in target_buckets:
                     b_name = b_url.replace("gs://", "").rstrip("/")
                     try:
