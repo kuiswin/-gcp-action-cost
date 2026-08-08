@@ -608,19 +608,90 @@ def main():
                 except Exception:
                     pass
 
-        # 検出成果物の優先適用
-        final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0))
-        if final_img_cnt > 0:
-            raw_01["image_gen_count"] = 0.0
-            raw_07["image_gen_count"] = final_img_cnt
-            raw_30["image_gen_count"] = final_img_cnt
-            print(f"  ・[GCS実像成果物ピンポイント検出] image_gen_count: {final_img_cnt:,.0f} 枚")
+def query_audit_logs(project_id):
+    """データアクセス監査ログ (Cloud Audit Data Access Logs) から最新の精密操作件数を全一括検出"""
+    audit_counts = {
+        "image_gen_count": 0.0,
+        "text_input_tokens": 0.0,
+        "gcs_write_ops": 0.0,
+        "gcs_read_ops": 0.0,
+        "spanner_write_ops": 0.0,
+        "spanner_read_ops": 0.0,
+        "bigtable_write_ops": 0.0,
+        "bigtable_read_ops": 0.0,
+        "pubsub_publish_ops": 0.0,
+        "secret_access_ops": 0.0,
+        "artifact_registry_ops": 0.0,
+        "cloud_build_ops": 0.0,
+        "cloud_run_ops": 0.0,
+    }
+    try:
+        cmd = [
+            get_gcloud_cmd(), "logging", "read",
+            f'logName="projects/{project_id}/logs/cloudaudit.googleapis.com%2Fdata_access" AND NOT protoPayload.serviceName="cloudaicompanion.googleapis.com" AND NOT protoPayload.serviceName="cloudbilling.googleapis.com"',
+            f"--project={project_id}",
+            "--limit=2000",
+            "--format=json",
+            "--quiet"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+        if res.returncode == 0 and res.stdout.strip():
+            entries = json.loads(res.stdout)
+            for entry in entries:
+                payload = entry.get("protoPayload", {})
+                svc = payload.get("serviceName", "")
+                method = payload.get("methodName", "")
 
-            if "text_input_tokens" in metric_keys:
-                raw_01["text_input_tokens"] = 0.0
-                raw_07["text_input_tokens"] = 0.5
-                raw_30["text_input_tokens"] = 0.5
-                print(f"  ・[GCS連動プロンプト推算ピンポイント検出] text_input_tokens: 0.50 1kトークン")
+                if svc == "aiplatform.googleapis.com":
+                    if "Predict" in method and "Endpoint" not in method:
+                        audit_counts["image_gen_count"] += 1.0
+                    elif "GenerateContent" in method:
+                        audit_counts["text_input_tokens"] += 0.5
+                elif svc == "storage.googleapis.com":
+                    if method == "storage.objects.create":
+                        audit_counts["gcs_write_ops"] += 1.0
+                    elif method == "storage.objects.get":
+                        audit_counts["gcs_read_ops"] += 1.0
+                elif svc == "spanner.googleapis.com":
+                    if "Commit" in method or "Mutate" in method:
+                        audit_counts["spanner_write_ops"] += 1.0
+                    elif "ExecuteSql" in method or "Read" in method:
+                        audit_counts["spanner_read_ops"] += 1.0
+                elif svc == "bigtable.googleapis.com":
+                    if "Mutate" in method:
+                        audit_counts["bigtable_write_ops"] += 1.0
+                    elif "ReadRows" in method or "SampleRowKeys" in method:
+                        audit_counts["bigtable_read_ops"] += 1.0
+                elif svc == "pubsub.googleapis.com":
+                    if "Publish" in method:
+                        audit_counts["pubsub_publish_ops"] += 1.0
+                elif svc == "secretmanager.googleapis.com":
+                    if "AccessSecretVersion" in method:
+                        audit_counts["secret_access_ops"] += 1.0
+                elif svc == "artifactregistry.googleapis.com":
+                    audit_counts["artifact_registry_ops"] += 1.0
+                elif svc == "cloudbuild.googleapis.com":
+                    audit_counts["cloud_build_ops"] += 1.0
+                elif svc == "run.googleapis.com":
+                    audit_counts["cloud_run_ops"] += 1.0
+    except Exception:
+        pass
+    return audit_counts
+
+    # 検出成果物の優先適用
+    audit_logs_data = query_audit_logs(project_id)
+    final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0), audit_logs_data.get("image_gen_count", 0.0))
+    if final_img_cnt > 0:
+        raw_01["image_gen_count"] = 0.0
+        raw_07["image_gen_count"] = final_img_cnt
+        raw_30["image_gen_count"] = final_img_cnt
+        print(f"  ・[監査ログ＆GCS成果物ピンポイント検出] image_gen_count: {final_img_cnt:,.0f} 枚")
+
+        if "text_input_tokens" in metric_keys:
+            raw_01["text_input_tokens"] = 0.0
+            raw_07["text_input_tokens"] = 0.5
+            raw_30["text_input_tokens"] = 0.5
+            print(f"  ・[GCS連動プロンプト推算ピンポイント検出] text_input_tokens: 0.50 1kトークン")
 
 
     # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
