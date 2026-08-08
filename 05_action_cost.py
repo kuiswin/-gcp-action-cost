@@ -387,6 +387,8 @@ def main():
                     diff_disp = f"{diff_val:.4f} {unit} (継続 {snap_elapsed_seconds:.0f}秒 × {live_nodes:.0f}ノード/台)"
                 elif pat_code == "artifact":
                     diff_disp = f"{diff_val:.0f} {unit} (実成果物・増分検知)" if unit == "枚" else f"{diff_val:.2f} {unit}"
+                else:
+                    diff_disp = fmt_val(diff_val, unit)
                 print(f"  ・{ljust_jp(label, 32)}: 新規増分 {diff_disp}")
 
     # --------------------------------------------------------------------------
