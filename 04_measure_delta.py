@@ -10,6 +10,7 @@ Step 4: Monitoring API をサービスごとに呼び出し、過去30日間の�
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -21,6 +22,9 @@ DATA_DIR         = os.path.abspath(".data")
 SERVICES_FILE    = os.path.join(DATA_DIR, "active_services.json")
 TARGET_PRICING_FILE = os.path.join(DATA_DIR, "target_pricing.json")
 OUTPUT_FILE      = os.path.join(DATA_DIR, "usage_delta.json")
+
+def get_gcloud_cmd():
+    return shutil.which("gcloud") or "/root/google-cloud-sdk/bin/gcloud"
 
 def to_jst_str(iso_str):
     """UTC ISO日時文字列を日本時間 (JST, +09:00) の読みやすいフォーマットに変換"""
@@ -35,7 +39,7 @@ def to_jst_str(iso_str):
 
 def get_access_token():
     res = subprocess.run(
-        ["/root/google-cloud-sdk/bin/gcloud", "auth", "print-access-token"],
+        [get_gcloud_cmd(), "auth", "print-access-token"],
         capture_output=True, text=True, check=True
     )
     return res.stdout.strip()
@@ -46,7 +50,7 @@ def detect_zombie_resources(project_id):
     # 1. 包括的アセット全検索 (Cloud Asset Inventory API)
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "asset", "search-all-resources", f"--scope=projects/{project_id}", "--format=json", "--quiet"],
+            [get_gcloud_cmd(), "asset", "search-all-resources", f"--scope=projects/{project_id}", "--format=json", "--quiet"],
             capture_output=True, text=True
         )
         if res.returncode == 0 and res.stdout.strip():
@@ -74,17 +78,17 @@ def detect_zombie_resources(project_id):
     # 2. フォールバック (Asset Inventory が利用できない場合の個別アセット探索)
     if not zombies:
         try:
-            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "pubsub", "subscriptions", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            res = subprocess.run([get_gcloud_cmd(), "pubsub", "subscriptions", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
             if res.returncode == 0:
                 for s in json.loads(res.stdout or "[]"):
                     zombies.append(f"Pub/Sub サブスクリプション: {s.get('name').split('/')[-1]}")
             
-            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "pubsub", "topics", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            res = subprocess.run([get_gcloud_cmd(), "pubsub", "topics", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
             if res.returncode == 0:
                 for t in json.loads(res.stdout or "[]"):
                     zombies.append(f"Pub/Sub トピック: {t.get('name').split('/')[-1]}")
 
-            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "scheduler", "jobs", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            res = subprocess.run([get_gcloud_cmd(), "scheduler", "jobs", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
             if res.returncode == 0:
                 for j in json.loads(res.stdout or "[]"):
                     zombies.append(f"Cloud Scheduler ジョブ: {j.get('name').split('/')[-1]}")
@@ -95,7 +99,7 @@ def detect_zombie_resources(project_id):
 
 def get_project_id():
     res = subprocess.run(
-        ["/root/google-cloud-sdk/bin/gcloud", "config", "get-value", "project"],
+        [get_gcloud_cmd(), "config", "get-value", "project"],
         capture_output=True, text=True
     )
     pid = res.stdout.strip()
@@ -276,7 +280,7 @@ def check_live_provisioned_nodes(project_id):
     # Bigtable 稼働ノード数
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
+            [get_gcloud_cmd(), "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
             capture_output=True, text=True, timeout=15
         )
         if res.returncode == 0:
@@ -285,7 +289,7 @@ def check_live_provisioned_nodes(project_id):
                 if inst.get("state") == "READY":
                     inst_id = inst.get("name", "").split("/")[-1]
                     res_cls = subprocess.run(
-                        ["/root/google-cloud-sdk/bin/gcloud", "bigtable", "clusters", "list", f"--instances={inst_id}", f"--project={project_id}", "--format=json", "--quiet"],
+                        [get_gcloud_cmd(), "bigtable", "clusters", "list", f"--instances={inst_id}", f"--project={project_id}", "--format=json", "--quiet"],
                         capture_output=True, text=True, timeout=15
                     )
                     if res_cls.returncode == 0:
@@ -298,7 +302,7 @@ def check_live_provisioned_nodes(project_id):
     # Spanner 稼働ノード数
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
+            [get_gcloud_cmd(), "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"],
             capture_output=True, text=True, timeout=15
         )
         if res.returncode == 0:
@@ -312,7 +316,7 @@ def check_live_provisioned_nodes(project_id):
     # AlloyDB 稼働 vCPU数
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "alloydb", "instances", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"],
+            [get_gcloud_cmd(), "alloydb", "instances", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"],
             capture_output=True, text=True, timeout=15
         )
         if res.returncode == 0:
@@ -551,17 +555,17 @@ def main():
                 target_buckets.append(env_bucket)
             else:
                 b_res = subprocess.run(
-                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls"],
+                    [get_gcloud_cmd(), "storage", "ls"],
                     capture_output=True, text=True
                 )
                 for line in b_res.stdout.splitlines():
                     b_url = line.strip()
-                    if "media" in b_url or "cms" in b_url:
+                    if "media" in b_url or "cms" in b_url or "170" in b_url:
                         target_buckets.append(b_url)
 
             for b_url in target_buckets:
                 res = subprocess.run(
-                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"{b_url.rstrip('/')}/**"],
+                    [get_gcloud_cmd(), "storage", "ls", f"{b_url.rstrip('/')}/**"],
                     capture_output=True, text=True
                 )
                 lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
