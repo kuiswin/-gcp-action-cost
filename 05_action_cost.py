@@ -37,20 +37,30 @@ PROVISIONED_SERVICES = load_provisioned_services()
 def build_metric_catalog(pricing_data):
     """
     target_pricing.json の target_unit_prices から
-    {metric_key: {label, unit, price_jpy, free_limit, free_limit_display, service_key}} を構築する。
+    {metric_key: {label, unit, editions, price_jpy, free_limit, free_limit_display, service_key}} を構築する。
     """
     catalog = {}
     for service_key, service_entry in pricing_data.items():
-        unit_prices  = service_entry.get("unit_prices", service_entry)  # 旧形式互換
+        unit_prices  = service_entry.get("unit_prices", service_entry)
         free_metrics = service_entry.get("free_tier_metrics", {})
 
         for metric_key, meta in free_metrics.items():
-            price_key = meta.get("price_key", "")
-            price_jpy = unit_prices.get(price_key, 0.0)
+            editions = meta.get("editions")
+            if editions:
+                parsed_editions = []
+                for ed in editions:
+                    price_jpy = unit_prices.get(ed["price_key"], 0.0)
+                    parsed_editions.append({"code": ed["code"], "price_jpy": price_jpy, "is_default": ed.get("is_default", False)})
+            else:
+                price_key = meta.get("price_key", "")
+                price_jpy = unit_prices.get(price_key, 0.0)
+                parsed_editions = [{"code": "--", "price_jpy": price_jpy, "is_default": True}]
+
             catalog[metric_key] = {
                 "label":              meta.get("label", metric_key),
                 "unit":               meta.get("unit", ""),
-                "price_jpy":          price_jpy,
+                "editions":           parsed_editions,
+                "price_jpy":          parsed_editions[0]["price_jpy"],
                 "free_limit":         meta.get("free_limit", 0.0),
                 "free_limit_display": meta.get("free_limit_display", "従量制"),
                 "service_key":        service_key,
@@ -117,15 +127,12 @@ def main():
         val_header = "操作増分 (Diff)" if is_diff_mode else "30日累計消費量"
 
         for metric_key, value in counters.items():
-            if metric_key == "window_minutes":
-                continue
+            if metric_key == "window_minutes": continue
             meta = metric_catalog.get(metric_key)
-            if meta is None:
-                continue
+            if meta is None: continue
 
             label       = meta["label"]
             unit        = meta["unit"]
-            price_jpy   = meta["price_jpy"]
             free_limit  = meta["free_limit"]
             free_display= meta["free_limit_display"]
 
@@ -134,45 +141,51 @@ def main():
                 live_nodes = value / 720.0
                 inc_node_hours = live_nodes * (snap_elapsed_seconds / 3600.0)
                 display_value = inc_node_hours
-                gross = inc_node_hours * price_jpy
-            else:
-                gross = value * price_jpy
 
-            total_gross += gross
-            gross_str = f"￥{gross:09.4f}"
+            for ed in meta["editions"]:
+                price_jpy = ed["price_jpy"]
+                code      = ed["code"]
+                is_def    = ed["is_default"]
 
-            if free_limit > 0:
-                over    = max(0.0, display_value - free_limit)
-                rem     = free_limit - min(display_value, free_limit)
-                pct_rem = (rem / free_limit) * 100.0
-                billed  = over * price_jpy
-                total_billed += billed
-                row = {
-                    "リソース":         label,
-                    val_header:         fmt_val(display_value, unit),
-                    "インフラ定価 (控除前)": gross_str,
-                    "無料枠上限":       free_display,
-                    "無料枠残量":       fmt_val(rem, unit),
-                    "残量率":           f"{pct_rem:.2f}%",
-                    "超過消費量":       fmt_val(over, unit),
-                    "確定請求 (控除後)": f"￥{billed:09.4f}",
-                }
-            else:
-                billed = gross
-                total_billed += billed
+                disp_label = f"{label} ({code})" if code != "--" else label
+                gross = display_value * price_jpy
+
+                if is_def:
+                    total_gross += gross
+
+                gross_str = f"￥{gross:09.4f}"
                 snap_time_suffix = f" (経過 {snap_elapsed_seconds:.0f}秒)" if (is_diff_mode and snap_elapsed_seconds > 0) else ""
-                row = {
-                    "リソース":         label,
-                    val_header:         f"{fmt_val(display_value, unit)}{snap_time_suffix}",
-                    "インフラ定価 (控除前)": gross_str,
-                    "無料枠上限":       free_display,
-                    "無料枠残量":       "従量制枠なし",
-                    "残量率":           "N/A",
-                    "超過消費量":       fmt_val(display_value, unit),
-                    "確定請求 (控除後)": f"￥{billed:09.4f}",
-                }
 
-            rows.append(row)
+                if free_limit > 0:
+                    over    = max(0.0, display_value - free_limit)
+                    rem     = free_limit - min(display_value, free_limit)
+                    pct_rem = (rem / free_limit) * 100.0
+                    billed  = over * price_jpy
+                    if is_def: total_billed += billed
+                    row = {
+                        "リソース":         disp_label,
+                        val_header:         fmt_val(display_value, unit),
+                        "インフラ定価 (控除前)": gross_str,
+                        "無料枠上限":       free_display,
+                        "無料枠残量":       fmt_val(rem, unit),
+                        "残量率":           f"{pct_rem:.2f}%",
+                        "超過消費量":       fmt_val(over, unit),
+                        "確定請求 (控除後)": f"￥{billed:09.4f}",
+                    }
+                else:
+                    billed = gross
+                    if is_def: total_billed += billed
+                    row = {
+                        "リソース":         disp_label,
+                        val_header:         f"{fmt_val(display_value, unit)}{snap_time_suffix}",
+                        "インフラ定価 (控除前)": gross_str,
+                        "無料枠上限":       free_display,
+                        "無料枠残量":       "従量制枠なし",
+                        "残量率":           "N/A",
+                        "超過消費量":       fmt_val(display_value, unit),
+                        "確定請求 (控除後)": f"￥{billed:09.4f}",
+                    }
+                rows.append(row)
         return rows, total_billed, total_gross
 
     month_counters = delta_data.get("month_counters", {})
@@ -276,78 +289,55 @@ def main():
     # --------------------------------------------------------------------------
     # ユーザーフレンドリーな 01 Day / 07 Days / 30 Days サマリーテーブル出力
     # --------------------------------------------------------------------------
-    print("\n" + "=" * 115)
-    print("📊 期間別 (01 Day / 07 Days / 30 Days) リソース消費量・定価・無料枠・最終確定請求額サマリー")
-    print("=" * 115)
+    print("\n" + "=" * 122)
+    print("📊 期間別 (01 Day / 07 Days / 30 Days) リソース消費量・定価・無料枠・最終確定額サマリー")
+    print("=" * 122)
 
     raw_01_counters = delta_data.get("raw_01_counters", {})
     raw_07_counters = delta_data.get("raw_07_counters", {})
 
-    for row in month_rows:
-        label = row.get("リソース", "")
-        used_30 = row.get("30日累計消費量", row.get("消費量", "0"))
-        gross_30_str = row.get("インフラ定価 (控除前)", "￥0")
-        free_limit = row.get("無料枠上限", "-")
-        billed_30_str = row.get("確定請求 (控除後)", row.get("最終確定額 (控除後)", "￥0"))
+    def ljust_jp(text, width):
+        text = str(text)
+        text_width = sum(2 if ord(c) > 0x255 else 1 for c in text)
+        return text + " " * max(0, width - text_width)
 
-        try:
-            g30 = float(gross_30_str.replace("￥", "").replace(",", "").split()[0])
-        except Exception:
-            g30 = 0.0
+    for mkey, meta in metric_catalog.items():
+        label = meta["label"]
+        unit = meta["unit"]
+        free_limit_val = meta["free_limit"]
+        free_limit_str = meta["free_limit_display"]
 
-        try:
-            b30 = float(billed_30_str.replace("￥", "").replace(",", "").split()[0])
-        except Exception:
-            b30 = 0.0
-
-        # メトリクスのキー(mkey)をラベルから逆引き
-        mkey = None
-        for k, m in metric_catalog.items():
-            if m["label"] == label:
-                mkey = k
-                break
-        
-        # 過去24時間・7日間の完全実測値を取得
-        val_01 = raw_01_counters.get(mkey, 0.0) if mkey else 0.0
-        val_07 = raw_07_counters.get(mkey, 0.0) if mkey else 0.0
-        val_30 = raw_30_counters.get(mkey, 0.0) if mkey else 0.0
-        unit = metric_catalog[mkey]["unit"] if mkey else ""
-        price_jpy = metric_catalog[mkey]["price_jpy"] if mkey else 0.0
-        free_limit_val = metric_catalog[mkey]["free_limit"] if mkey else 0.0
-
-        # リアル実測ベースでの定価計算
-        g01 = val_01 * price_jpy
-        g07 = val_07 * price_jpy
-
-        # 無料枠がある場合の按分 (これまでの推算表示に近い表現にするため、請求ペースを実測比率で按分)
-        if free_limit_val > 0:
-            if b30 > 0 and val_30 > 0:
-                b01 = b30 * (val_01 / val_30)
-                b07 = b30 * (val_07 / val_30)
-            else:
-                b01 = b07 = 0.0
-        else:
-            b01 = g01
-            b07 = g07
-
-        used_01_disp = fmt_val(val_01, unit)
-        used_07_disp = fmt_val(val_07, unit)
-
-        # 全角文字（日本語）を2文字分としてカウントし、正確に左揃えパディングするヘルパー関数
-        def ljust_jp(text, width):
-            text = str(text)
-            text_width = sum(2 if ord(c) > 0x255 else 1 for c in text)
-            return text + " " * max(0, width - text_width)
-
-        used_30_clean = used_30.split(" (経過")[0]
+        val_01 = raw_01_counters.get(mkey, 0.0)
+        val_07 = raw_07_counters.get(mkey, 0.0)
+        val_30 = raw_30_counters.get(mkey, 0.0)
 
         print(f"\n★ 【サービス名】 {label}")
-        print("-" * 115)
-        print(f" {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('実測消費量', 26)}")
-        print("-" * 115)
-        print(f" {ljust_jp('01 Day', 10)} │ ￥{g01:09.4f}       │ ￥{b01:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_01_disp, 26)}")
-        print(f" {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_07_disp, 26)}")
-        print(f" {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit, 26)} │ {ljust_jp(used_30_clean, 26)}")
+        print("-" * 122)
+        print(f" {ljust_jp('ED', 2)} │ {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('実測消費量', 26)}")
+        print("-" * 122)
+
+        for ed in meta["editions"]:
+            code = ed["code"]
+            price_jpy = ed["price_jpy"]
+
+            g01 = val_01 * price_jpy
+            g07 = val_07 * price_jpy
+            g30 = val_30 * price_jpy
+
+            if free_limit_val > 0:
+                b30 = max(0.0, val_30 - free_limit_val) * price_jpy
+                b01 = b30 * (val_01 / val_30) if val_30 > 0 else 0.0
+                b07 = b30 * (val_07 / val_30) if val_30 > 0 else 0.0
+            else:
+                b01 = g01; b07 = g07; b30 = g30
+
+            used_01_disp = fmt_val(val_01, unit)
+            used_07_disp = fmt_val(val_07, unit)
+            used_30_disp = fmt_val(val_30, unit)
+
+            print(f" {code:<2} │ {ljust_jp('01 Day', 10)} │ ￥{g01:09.4f}       │ ￥{b01:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_01_disp, 26)}")
+            print(f" {code:<2} │ {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_07_disp, 26)}")
+            print(f" {code:<2} │ {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_30_disp, 26)}")
 
     print("\n" + "=" * 115)
     print(f"💾 保持ファイル: {OUTPUT_FILE}")
