@@ -16,24 +16,50 @@ import time
 import urllib.request
 import unicodedata
 
+import sqlite3
+
 def get_gcloud_cmd():
     path = "/root/google-cloud-sdk/bin/gcloud"
     return path if os.path.exists(path) else "gcloud"
 
 def get_project_id():
     pid = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
-    if not pid:
+    if pid:
+        return pid
+    cfg_path = os.path.expanduser("~/.config/gcloud/configurations/config_default")
+    if os.path.exists(cfg_path):
         try:
-            res = subprocess.run([get_gcloud_cmd(), "config", "get-value", "project"], capture_output=True, text=True, timeout=4)
-            if res.returncode == 0 and res.stdout.strip():
-                pid = res.stdout.strip()
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("project"):
+                        parts = line.split("=")
+                        if len(parts) > 1 and parts[1].strip():
+                            return parts[1].strip()
         except Exception:
             pass
-    return pid or "ferrous-iridium-286000"
+    try:
+        res = subprocess.run([get_gcloud_cmd(), "config", "get-value", "project"], capture_output=True, text=True, timeout=3)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return "ferrous-iridium-286000"
 
 def get_access_token():
+    db_path = os.path.expanduser("~/.config/gcloud/access_tokens.db")
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            c = conn.cursor()
+            c.execute("SELECT access_token FROM access_tokens ORDER BY id DESC LIMIT 1")
+            row = c.fetchone()
+            conn.close()
+            if row and row[0]:
+                return row[0].strip()
+        except Exception:
+            pass
     try:
-        res = subprocess.run([get_gcloud_cmd(), "auth", "print-access-token"], capture_output=True, text=True, timeout=4)
+        res = subprocess.run([get_gcloud_cmd(), "auth", "print-access-token"], capture_output=True, text=True, timeout=5)
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
     except Exception:
