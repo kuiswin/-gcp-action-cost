@@ -250,7 +250,7 @@ def main():
     print("=" * line_w)
     print("🏆 【本ハンズオン 4時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
     print("=" * line_w)
-    print(f"  {ljust_jp('【直近 5分間】', 19)} │ {ljust_jp('【直近 30分間】', 19)} │ {ljust_jp('【直近 1時間】', 19)} │ {ljust_jp('【直近 24時間】', 19)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
+    print(f"  {ljust_jp('【直近 05分間】', 19)} │ {ljust_jp('【直近 30分間】', 19)} │ {ljust_jp('【直近 01時間】', 19)} │ {ljust_jp('【直近 24時間】', 19)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
     print("-" * line_w)
 
     profile_items = []
@@ -303,10 +303,10 @@ def main():
 
     print("-" * line_w)
     print(" 💰 【時間枠別・合計確定原価サマリー】")
-    print(f"    🔹 ⚡ 【直近 5分間】  : ￥{tot_5m:,.4f} / 回")
-    print(f"    🔹 ⚡ 【直近 30分間】 : ￥{tot_30m:,.4f} / 回")
-    print(f"    🔹 ⏱️ 【直近 1時間】  : ￥{tot_1h:,.4f} / 回")
-    print(f"    🔹 📅 【直近 24時間】 : ￥{tot_24h:,.4f} / 回")
+    print(f"    🔹 ⚡ 【直近 05分間】  : ￥{tot_5m:,.4f} / 回")
+    print(f"    🔹 ⚡ 【直近 30分間】  : ￥{tot_30m:,.4f} / 回")
+    print(f"    🔹 ⏱️ 【直近 01時間】  : ￥{tot_1h:,.4f} / 回")
+    print(f"    🔹 📅 【直近 24時間】  : ￥{tot_24h:,.4f} / 回")
     print("=" * line_w)
     print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 (データアクセスログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
     print("=" * line_w)
