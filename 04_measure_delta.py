@@ -678,6 +678,7 @@ def main():
         "raw_01_counters":      raw_01,
         "raw_07_counters":      raw_07,
         "raw_30_counters":      raw_30,
+        "counters":             eval_30,
         "month_counters":       month_counters,
         "time_matrix":          time_matrix,
         "zombie_resources":     zombies,
