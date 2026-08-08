@@ -91,18 +91,22 @@ def main():
         try:
             req_data = json.dumps({
                 "resourceNames": [f"projects/{project_id}"],
-                "filter": f'logName="projects/{project_id}/logs/cloudaudit.googleapis.com%2Fdata_access" AND NOT protoPayload.serviceName="cloudaicompanion.googleapis.com" AND NOT protoPayload.serviceName="cloudbilling.googleapis.com"',
-                "pageSize": 1000,
+                "filter": 'logName:"cloudaudit.googleapis.com" AND NOT protoPayload.serviceName="cloudaicompanion.googleapis.com" AND NOT protoPayload.serviceName="cloudbilling.googleapis.com"',
+                "pageSize": 500,
             }).encode("utf-8")
 
             req = urllib.request.Request(
                 "https://logging.googleapis.com/v2/entries:list",
                 data=req_data,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
             )
 
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                raw_bytes = resp.read()
+                if resp.info().get("Content-Encoding") == "gzip":
+                    import gzip
+                    raw_bytes = gzip.decompress(raw_bytes)
+                data = json.loads(raw_bytes.decode("utf-8"))
                 for entry in data.get("entries", []):
                     payload = entry.get("protoPayload", {})
                     svc = payload.get("serviceName", "")
@@ -141,7 +145,7 @@ def main():
     # 2. GCS 画像生成成果物 (png/jpg) のローカル/GCS実像フォールバック検知
     gcs_img_count = 0
     try:
-        img_check = subprocess.run([get_gcloud_cmd(), "storage", "ls", f"gs://{project_id}*/**"], capture_output=True, text=True, timeout=4)
+        img_check = subprocess.run([get_gcloud_cmd(), "storage", "ls", f"gs://{project_id}*/*.png"], capture_output=True, text=True, timeout=1)
         if img_check.returncode == 0:
             for line in img_check.stdout.splitlines():
                 if line.endswith(".png") or line.endswith(".jpg") or line.endswith(".jpeg") or line.endswith(".webp"):
