@@ -324,10 +324,8 @@ def main():
     profile_items.sort(key=lambda x: (x["sort_priority"], -x["c_24h"], -x["q_24h"]))
 
     def format_cell(cost, qty):
-        if qty <= 0:
-            return "￥ 0.0000 (    0)"
         q_str = f"{fmt_qty(qty):>5}"
-        return f"￥{cost:9.4f} ({q_str})"
+        return f"￥{cost:8.4f} ({q_str})"
 
     has_separator = False
     for item in profile_items:
