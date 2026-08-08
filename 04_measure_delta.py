@@ -335,14 +335,15 @@ def check_live_provisioned_nodes(project_id):
     # AlloyDB 稼働 vCPU数
     try:
         res = subprocess.run(
-            [get_gcloud_cmd(), "alloydb", "instances", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"],
+            [get_gcloud_cmd(), "alloydb", "instances", "list", "--cluster=-", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"],
             capture_output=True, text=True, timeout=15
         )
         if res.returncode == 0:
             insts = json.loads(res.stdout or "[]")
             for inst in insts:
                 if inst.get("state") == "READY":
-                    nodes["alloydb_cpu_hours"] += float(inst.get("cpuCount", 4))
+                    cpu_count = inst.get("machineConfig", {}).get("cpuCount", inst.get("cpuCount", 4))
+                    nodes["alloydb_cpu_hours"] += float(cpu_count)
     except Exception:
         pass
 
