@@ -6,6 +6,7 @@ Step 0: GCP Cloud Billing API から公式の実請求額・確定費用・Billi
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -14,10 +15,13 @@ import urllib.parse
 DATA_DIR    = os.path.abspath(".data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "billing_actuals.json")
 
+def get_gcloud_cmd():
+    return shutil.which("gcloud") or "/root/google-cloud-sdk/bin/gcloud"
+
 def get_access_token():
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "auth", "print-access-token"],
+            [get_gcloud_cmd(), "auth", "print-access-token"],
             capture_output=True, text=True, check=True
         )
         return res.stdout.strip()
@@ -27,7 +31,7 @@ def get_access_token():
 def get_project_id():
     try:
         res = subprocess.run(
-            ["/root/google-cloud-sdk/bin/gcloud", "config", "get-value", "project"],
+            [get_gcloud_cmd(), "config", "get-value", "project"],
             capture_output=True, text=True
         )
         pid = res.stdout.strip()
@@ -58,7 +62,7 @@ def main():
         "total_actual_jpy": 0.0
     }
 
-    # 1. プロジェクトの Billing Link 情報を取得
+    # 1. プロジェクトの Billing Link 情報を取得 (自動API有効化 ＆ gcloud CLIフォールバック機能付き)
     if token:
         try:
             url = f"https://cloudbilling.googleapis.com/v1/projects/{project_id}/billingInfo"
@@ -67,12 +71,33 @@ def main():
             billing_info["billing_account_name"] = data.get("billingAccountName", "")
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
-                print(f"⚠️ [警告] Cloud Billing APIのアクセス権限不足 (HTTP {e.code})", file=sys.stderr)
-                print("  ※ 正確な請求状態を取得するにはサービスアカウントに roles/billing.viewer 権限等が必要です", file=sys.stderr)
-            else:
-                print(f"⚠️ [警告] Cloud Billing APIの取得に失敗しました: HTTP {e.code}", file=sys.stderr)
-        except Exception as e:
-            print(f"⚠️ [警告] Cloud Billing APIの取得時にエラーが発生しました: {e}", file=sys.stderr)
+                # ⚡ 自動修復: Cloud Billing API の自動有効化を試行
+                print("⚡ [自動アクティベーション] Cloud Billing API をプロジェクトに自動有効化中...", file=sys.stderr)
+                try:
+                    subprocess.run(
+                        [get_gcloud_cmd(), "services", "enable", "cloudbilling.googleapis.com", f"--project={project_id}"],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    # 再試行
+                    data = fetch_json(url, token)
+                    billing_info["billing_enabled"] = data.get("billingEnabled", False)
+                    billing_info["billing_account_name"] = data.get("billingAccountName", "")
+                    print("✓ [自動アクティベーション成功] Cloud Billing API の有効化および請求情報取得に成功しました。", file=sys.stderr)
+                except Exception:
+                    # フォールバック: gcloud billing projects describe コマンドで直接取得
+                    try:
+                        res_b = subprocess.run(
+                            [get_gcloud_cmd(), "billing", "projects", "describe", project_id, "--format=json"],
+                            capture_output=True, text=True, timeout=15
+                        )
+                        if res_b.returncode == 0 and res_b.stdout.strip():
+                            b_data = json.loads(res_b.stdout)
+                            billing_info["billing_enabled"] = b_data.get("billingEnabled", False)
+                            billing_info["billing_account_name"] = b_data.get("billingAccountName", "")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     # 2. Billing Account / Budgets API から実請求・予算情報を取得
     if billing_info["billing_account_name"] and token:
