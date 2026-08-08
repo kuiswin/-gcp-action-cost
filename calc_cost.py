@@ -325,7 +325,7 @@ def main():
 
     def format_cell(cost, qty):
         q_str = f"{fmt_qty(qty):>5}"
-        return f"￥{cost:8.4f} ({q_str})"
+        return f"￥{cost:9.4f} ({q_str})"
 
     has_separator = False
     for item in profile_items:
