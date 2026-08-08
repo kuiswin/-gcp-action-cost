@@ -106,7 +106,7 @@ def fetch_json(url, token):
     with urllib.request.urlopen(req, timeout=5) as resp:
         return json.loads(resp.read().decode())
 
-def query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None):
+def query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None, extra_filter=None):
     now      = datetime.now(timezone.utc)
     end_time = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     if since_time:
@@ -116,6 +116,7 @@ def query_metric(project_id, token, metric_type, resource_type, days=30, since_t
     filter_expr = (
         f'metric.type="{metric_type}"'
         + (f' AND resource.type="{resource_type}"' if resource_type else "")
+        + (f' AND {extra_filter}' if extra_filter else "")
     )
     params = urllib.parse.urlencode({
         "filter":                filter_expr,
@@ -261,7 +262,7 @@ METRICS_MAP = SERVICE_RULES.get("metrics_map", {})
 PROVISIONED_SERVICES = set(SERVICE_RULES.get("provisioned_services", []))
 
 METRIC_QUERY_MAP = {
-    k: (v.get("metric_type"), v.get("resource_type"))
+    k: (v.get("metric_type"), v.get("resource_type"), v.get("extra_filter"))
     for k, v in METRICS_MAP.items()
 }
 
@@ -516,8 +517,8 @@ def main():
             log_msg = f"  ・[汎用自動計測] {mkey}: {used_str}"
             return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
 
-        metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        r1, r7, r30, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
+        metric_type, resource_type, extra_filter = METRIC_QUERY_MAP[mkey]
+        r1, r7, r30, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None, extra_filter=extra_filter)
 
         if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and r30 > 0:
             r1 /= (1024 ** 3)
