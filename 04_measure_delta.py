@@ -14,6 +14,7 @@ import subprocess
 import sys
 import urllib.request
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 DATA_DIR         = os.path.abspath(".data")
@@ -527,55 +528,56 @@ def main():
         raw_30["text_input_tokens"] = 0.5 if raw_30.get("image_gen_count", 0) > 0 else 0.0
         print(f"  ・Gemini API (テキスト入力): {raw_30['text_input_tokens']:,.2f} 1kトークン")
 
-    # その他メトリクス (プロビジョニング型サービスはgcloudリアルタイム検知を優先)
-    for mkey in metric_keys:
-        if mkey in raw_30:
-            continue
+    # その他メトリクス (8並列マルチスレッドで Monitoring API を同時一括照会)
+    remaining_keys = [mk for mk in metric_keys if mk not in raw_30]
+    live_nodes = check_live_provisioned_nodes(project_id) if any(k in PROVISIONED_SERVICES for k in remaining_keys) else {}
+
+    def fetch_single_metric_task(mkey):
+        r1, r7, r30, m_cnt, m_since, m_until, log_msg = 0.0, 0.0, 0.0, 0.0, None, None, ""
 
         if mkey in PROVISIONED_SERVICES:
-            live_nodes = check_live_provisioned_nodes(project_id)
             live_cnt = live_nodes.get(mkey, 0.0)
             if live_cnt > 0:
-                raw_01[mkey] = live_cnt * 24.0
-                raw_07[mkey] = live_cnt * 168.0
-                raw_30[mkey] = live_cnt * 720.0
-                print(f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中")
-                continue
+                r1, r7, r30 = live_cnt * 24.0, live_cnt * 168.0, live_cnt * 720.0
+                log_msg = f"  ・[リアルタイム稼働検出] {mkey}: 現在 {live_cnt:,.0f} ノード/vCPUがアクティブ稼働中"
+                return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
+
             if mkey in METRIC_QUERY_MAP:
                 metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-                v_01, v_07, v_30, node_hours_month, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
-                raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
-                month_counters[mkey] = node_hours_month
-                if m_since: all_since.append(m_since)
-                if m_until: all_until.append(m_until)
-                used_str = f"{node_hours_month:,.2f} ノード時間 (30日累計: {v_30:,.2f}h)" if node_hours_month > 0 else "0 (未使用/削除済み)"
-                print(f"  ・[Monitoring履歴検出] {mkey}: 当月 {used_str}")
-                continue
+                r1, r7, r30, m_cnt, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
+                used_str = f"{m_cnt:,.2f} ノード時間 (30日累計: {r30:,.2f}h)" if m_cnt > 0 else "0 (未使用/削除済み)"
+                log_msg = f"  ・[Monitoring履歴検出] {mkey}: 当月 {used_str}"
+                return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
 
         if mkey not in METRIC_QUERY_MAP:
-            print(f"  ⚠️ [未定義サービス検出フォールバック] {mkey}: service_rules.json に未登録のメトリクスです。汎用API件数から仮試算します。")
-            v_01, v_07, v_30, m_since, m_until = query_generic_api_count(project_id, token, days=30)
-            raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
-            if m_since: all_since.append(m_since)
-            if m_until: all_until.append(m_until)
-            used_str = f"{v_30:,.4f}" if v_30 else "0 (未使用)"
-            print(f"  ・[汎用自動計測] {mkey}: {used_str}")
-            continue
+            r1, r7, r30, m_since, m_until = query_generic_api_count(project_id, token, days=30)
+            used_str = f"{r30:,.4f}" if r30 else "0 (未使用)"
+            log_msg = f"  ・[汎用自動計測] {mkey}: {used_str}"
+            return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
 
         metric_type, resource_type = METRIC_QUERY_MAP[mkey]
-        v_01, v_07, v_30, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
+        r1, r7, r30, m_since, m_until = query_metric(project_id, token, metric_type, resource_type, days=30, since_time=None)
 
-        # Artifact RegistryやPub/Subなどの Bytes メトリクスを GB (ギガバイト) に変換
-        if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and v_30 > 0:
-            v_01 /= (1024 ** 3)
-            v_07 /= (1024 ** 3)
-            v_30 /= (1024 ** 3)
+        if mkey in ["artifact_storage_gb", "pubsub_message_bytes"] and r30 > 0:
+            r1 /= (1024 ** 3)
+            r7 /= (1024 ** 3)
+            r30 /= (1024 ** 3)
 
-        raw_01[mkey] = v_01; raw_07[mkey] = v_07; raw_30[mkey] = v_30
-        if m_since: all_since.append(m_since)
-        if m_until: all_until.append(m_until)
-        used_str = f"{v_30:,.4f}" if v_30 else "0 (未使用)"
-        print(f"  ・{mkey}: {used_str}")
+        used_str = f"{r30:,.4f}" if r30 else "0 (未使用)"
+        log_msg = f"  ・{mkey}: {used_str}"
+        return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(fetch_single_metric_task, mk) for mk in remaining_keys]
+        for future in as_completed(futures):
+            mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg = future.result()
+            raw_01[mkey] = r1
+            raw_07[mkey] = r7
+            raw_30[mkey] = r30
+            if m_cnt > 0: month_counters[mkey] = m_cnt
+            if m_since: all_since.append(m_since)
+            if m_until: all_until.append(m_until)
+            if log_msg: print(log_msg)
 
 
     # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
