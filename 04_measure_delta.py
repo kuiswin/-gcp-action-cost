@@ -638,6 +638,17 @@ def main():
     # 実測期間を算出
     data_since = min(all_since) if all_since else None
     data_until = max(all_until) if all_until else None
+    if data_since and data_until:
+        fmt = "%Y-%m-%dT%H:%M:%S"
+        try:
+            t0 = datetime.strptime(data_since[:19], fmt)
+            t1 = datetime.strptime(data_until[:19], fmt)
+            actual_days = round((t1 - t0).total_seconds() / 86400, 1)
+        except Exception:
+            actual_days = None
+    else:
+        actual_days = None
+
     if data_since and actual_days is not None:
         print(f"  ・実測期間: {data_since[:10]} 〜 {data_until[:10]} ({actual_days} 日間)")
 
