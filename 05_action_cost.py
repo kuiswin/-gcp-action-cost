@@ -311,7 +311,7 @@ def main():
         val_07 = raw_07_counters.get(mkey, 0.0)
         val_30 = raw_30_counters.get(mkey, 0.0)
 
-        print(f"\n★ 【サービス名】 {label}")
+        print(f"\n★ {label}")
         print("-" * 122)
         print(f" {ljust_jp('ED', 2)} │ {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('実測消費量', 26)}")
         print("-" * 122)
