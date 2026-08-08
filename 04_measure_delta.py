@@ -505,7 +505,7 @@ def main():
                 return mkey, r1, r7, r30, m_cnt, m_since, m_until, log_msg
 
             if mkey in METRIC_QUERY_MAP:
-                metric_type, resource_type = METRIC_QUERY_MAP[mkey]
+                metric_type, resource_type, *_ = METRIC_QUERY_MAP[mkey]
                 r1, r7, r30, m_cnt, m_since, m_until = query_provisioned_node_hours(project_id, token, metric_type, days=30)
                 used_str = f"{m_cnt:,.2f} ノード時間 (30日累計: {r30:,.2f}h)" if m_cnt > 0 else "0 (未使用/削除済み)"
                 log_msg = f"  ・[Monitoring履歴検出] {mkey}: 当月 {used_str}"
