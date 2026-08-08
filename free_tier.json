@@ -71,7 +71,11 @@
         "spanner_node_hours": {
           "label": "Cloud Spanner Node",
           "unit": "ノード時間",
-          "price_key": "node_per_hour_jpy",
+          "editions": [
+            {"code": "ST", "price_key": "node_per_hour_st_jpy", "is_default": true},
+            {"code": "EE", "price_key": "node_per_hour_ee_jpy"},
+            {"code": "EP", "price_key": "node_per_hour_ep_jpy"}
+          ],
           "free_limit": 0.0,
           "free_limit_display": "無料枠なし (従量課金)"
         }

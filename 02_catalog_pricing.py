@@ -121,6 +121,9 @@ def main():
         },
         "cloud_spanner": {
             "node_per_hour_jpy": 1.50 * usd_jpy_rate,
+            "node_per_hour_st_jpy": 1.50 * usd_jpy_rate,
+            "node_per_hour_ee_jpy": 1.50 * usd_jpy_rate,
+            "node_per_hour_ep_jpy": 6.50 * usd_jpy_rate,
             "pu_100_per_hour_jpy": 0.15 * usd_jpy_rate
         },
         "cloud_bigtable": {
