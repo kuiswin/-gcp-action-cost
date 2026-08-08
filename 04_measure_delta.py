@@ -39,6 +39,59 @@ def get_access_token():
     )
     return res.stdout.strip()
 
+def detect_zombie_resources(project_id):
+    """包括的アセット全検索 (Cloud Asset Inventory API) ＋ フォールバック個別検索による放置・野良アセット検出"""
+    zombies = []
+    # 1. 包括的アセット全検索 (Cloud Asset Inventory API)
+    try:
+        res = subprocess.run(
+            ["/root/google-cloud-sdk/bin/gcloud", "asset", "search-all-resources", f"--scope=projects/{project_id}", "--format=json", "--quiet"],
+            capture_output=True, text=True
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            assets = json.loads(res.stdout)
+            for a in assets:
+                atype = a.get("assetType", "")
+                name  = a.get("name", "").split("/")[-1]
+                if "pubsub.googleapis.com/Subscription" in atype:
+                    zombies.append(f"Pub/Sub サブスクリプション: {name}")
+                elif "pubsub.googleapis.com/Topic" in atype:
+                    zombies.append(f"Pub/Sub トピック: {name}")
+                elif "cloudscheduler.googleapis.com/Job" in atype:
+                    zombies.append(f"Cloud Scheduler ジョブ: {name}")
+                elif "compute.googleapis.com/Address" in atype:
+                    zombies.append(f"Compute Engine 割り当て済み静的IP: {name}")
+                elif "compute.googleapis.com/Disk" in atype:
+                    zombies.append(f"Compute Engine 永続ディスク: {name}")
+                elif "sqladmin.googleapis.com/Instance" in atype:
+                    zombies.append(f"Cloud SQL インスタンス: {name}")
+                elif "tasks.googleapis.com/Queue" in atype:
+                    zombies.append(f"Cloud Tasks キュー: {name}")
+    except Exception:
+        pass
+
+    # 2. フォールバック (Asset Inventory が利用できない場合の個別アセット探索)
+    if not zombies:
+        try:
+            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "pubsub", "subscriptions", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            if res.returncode == 0:
+                for s in json.loads(res.stdout or "[]"):
+                    zombies.append(f"Pub/Sub サブスクリプション: {s.get('name').split('/')[-1]}")
+            
+            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "pubsub", "topics", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            if res.returncode == 0:
+                for t in json.loads(res.stdout or "[]"):
+                    zombies.append(f"Pub/Sub トピック: {t.get('name').split('/')[-1]}")
+
+            res = subprocess.run(["/root/google-cloud-sdk/bin/gcloud", "scheduler", "jobs", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True)
+            if res.returncode == 0:
+                for j in json.loads(res.stdout or "[]"):
+                    zombies.append(f"Cloud Scheduler ジョブ: {j.get('name').split('/')[-1]}")
+        except Exception:
+            pass
+
+    return zombies
+
 def get_project_id():
     res = subprocess.run(
         ["/root/google-cloud-sdk/bin/gcloud", "config", "get-value", "project"],
@@ -585,19 +638,12 @@ def main():
     # 実測期間を算出
     data_since = min(all_since) if all_since else None
     data_until = max(all_until) if all_until else None
-    if data_since and data_until:
-        fmt = "%Y-%m-%dT%H:%M:%S"
-        try:
-            t0 = datetime.strptime(data_since[:19], fmt)
-            t1 = datetime.strptime(data_until[:19], fmt)
-            actual_days = round((t1 - t0).total_seconds() / 86400, 1)
-        except Exception:
-            actual_days = None
-    else:
-        actual_days = None
-
     if data_since and actual_days is not None:
         print(f"  ・実測期間: {data_since[:10]} 〜 {data_until[:10]} ({actual_days} 日間)")
+
+    zombies = detect_zombie_resources(project_id)
+    if zombies:
+        print(f"  ⚠️ [包括的アセット検出] 放置・残留の可能性がある野良アセットを {len(zombies)} 件発見しました。")
 
     usage_delta = {
         "project_id":           project_id,
@@ -611,6 +657,7 @@ def main():
         "raw_30_counters":      raw_30,
         "month_counters":       month_counters,
         "time_matrix":          time_matrix,
+        "zombie_resources":     zombies,
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

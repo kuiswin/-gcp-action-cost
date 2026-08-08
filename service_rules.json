@@ -50,6 +50,11 @@
       "resource_type": "pubsub_topic",
       "category": "metered"
     },
+    "pubsub_push_requests": {
+      "metric_type": "pubsub.googleapis.com/subscription/push_request_count",
+      "resource_type": "pubsub_subscription",
+      "category": "metered"
+    },
     "function_invocations": {
       "metric_type": "cloudfunctions.googleapis.com/function/execution_count",
       "resource_type": "cloud_function",
