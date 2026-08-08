@@ -76,6 +76,7 @@ def run_step(step_num, project_id=None, extra_env=None):
         os.makedirs(tmp_dir, exist_ok=True)
         tmp_file = os.path.join(tmp_dir, f"_tmp_{script_name}")
 
+        # 古い一時キャッシュスクリプトの即時強制削除
         if os.path.exists(tmp_file):
             try:
                 os.remove(tmp_file)
