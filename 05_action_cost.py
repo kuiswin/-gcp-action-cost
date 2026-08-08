@@ -68,6 +68,29 @@ def build_metric_catalog(pricing_data):
     return catalog
 
 
+import unicodedata
+
+def get_disp_width(text):
+    """絵文字・全角文字・半角文字の端末表示幅を正確に算出"""
+    w = 0
+    for c in str(text):
+        east_asian = unicodedata.east_asian_width(c)
+        if east_asian in ('F', 'W', 'A'):
+            w += 2
+        else:
+            w += 1
+    return w
+
+def ljust_jp(text, width):
+    text_str = str(text)
+    text_w = get_disp_width(text_str)
+    return text_str + " " * max(0, width - text_w)
+
+def rjust_jp(text, width):
+    text_str = str(text)
+    text_w = get_disp_width(text_str)
+    return " " * max(0, width - text_w) + text_str
+
 def fmt_val(val, unit):
     """数値を読みやすく整形して単位を付ける。"""
     if val == int(val):
@@ -397,10 +420,12 @@ def main():
     print("\n" + "=" * 122)
     print("🏆 【本ハンズオン 1回あたりの完全確定原価プロファイル】 (データアクセス監査ログ ＆ リソース実測エビデンス)")
     print("=" * 122)
-    print(f"  {ljust_jp('実測数量 / 回数', 18)} │ {ljust_jp('区分', 16)} │ {ljust_jp('サービス・リソース名', 35)} │ {ljust_jp('確定金額 (無料枠考慮後)', 22)}")
+    print(f"  {rjust_jp('実測数量 / 回数', 20)} │ {ljust_jp('区分', 20)} │ {ljust_jp('サービス・リソース名', 36)} │ {ljust_jp('確定金額 (無料枠考慮後)', 22)}")
     print("-" * 122)
 
+    profile_items = []
     total_hands_on_cost = 0.0
+
     for mkey, meta in metric_catalog.items():
         val_30 = raw_30_counters.get(mkey, 0.0)
         unit = meta["unit"]
@@ -422,8 +447,31 @@ def main():
             cat = "📦 インフラ・ログ"
 
         disp_qty = fmt_val(val_30, unit)
-        cost_note = f"￥{billed_cost:09.4f}  (課金発生)" if billed_cost > 0 else "￥0.0000   (無料枠内)"
-        print(f"  {ljust_jp(disp_qty, 18)} │ {ljust_jp(cat, 16)} │ {ljust_jp(meta['label'], 35)} │ {cost_note}")
+        sort_priority = 1 if billed_cost > 0 else (2 if val_30 > 0 else 3)
+
+        profile_items.append({
+            "sort_priority": sort_priority,
+            "billed_cost": billed_cost,
+            "val_30": val_30,
+            "disp_qty": disp_qty,
+            "cat": cat,
+            "label": meta["label"],
+        })
+
+    profile_items.sort(key=lambda x: (x["sort_priority"], -x["billed_cost"], -x["val_30"]))
+
+    has_separator = False
+    for item in profile_items:
+        if item["sort_priority"] == 3 and not has_separator:
+            print("  " + "┈" * 118)
+            has_separator = True
+
+        if item['billed_cost'] > 0:
+            cost_note = f"￥{item['billed_cost']:8.4f}  (課金発生)"
+        else:
+            cost_note = "￥  0.0000  (無料枠内)"
+
+        print(f"  {rjust_jp(item['disp_qty'], 20)} │ {ljust_jp(item['cat'], 20)} │ {ljust_jp(item['label'], 36)} │ {cost_note}")
 
     print("-" * 122)
     if total_hands_on_cost == 0:
