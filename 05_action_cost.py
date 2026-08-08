@@ -287,15 +287,16 @@ def main():
         json.dump(result, f, indent=2, ensure_ascii=False)
 
     # --------------------------------------------------------------------------
-    # ユーザーフレンドリーな 01 Day / 07 Days / 30 Days サマリーテーブル出力
+    # 【表①】 ユーザーフレンドリーな 01 Day / 07 Days / 30 Days 当月累計サマリーテーブル出力
     # --------------------------------------------------------------------------
     print("\n" + "=" * 122)
-    print("📊 期間別 (01 Day / 07 Days / 30 Days) リソース消費量・定価・無料枠・最終確定額サマリー")
+    print("📊 【表①】 期間別 (01 Day / 07 Days / 30 Days) 当月累計リソース消費量・定価・無料枠・最終確定額サマリー")
     print(" (注: 本ツールは実測消費量プロファイラです。製品SKUの自動判定は行わないため、特定製品は複数価格帯[ST/EE/EP]を並列表示しています)")
     print("=" * 122)
 
     raw_01_counters = delta_data.get("raw_01_counters", {})
     raw_07_counters = delta_data.get("raw_07_counters", {})
+    raw_30_counters = delta_data.get("raw_30_counters", {})
 
     def ljust_jp(text, width):
         text = str(text)
@@ -314,7 +315,7 @@ def main():
 
         print(f"\n★ {label}")
         print("-" * 122)
-        print(f" {ljust_jp('ED', 2)} │ {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('実測消費量', 26)}")
+        print(f" {ljust_jp('ED', 2)} │ {ljust_jp('期間', 10)} │ {ljust_jp('定価 (控除前)', 16)} │ {ljust_jp('最終確定額 (控除後)', 16)} │ {ljust_jp('無料枠上限定義', 26)} │ {ljust_jp('当月累計消費量', 26)}")
         print("-" * 122)
 
         for ed in meta["editions"]:
@@ -339,6 +340,29 @@ def main():
             print(f" {code:<2} │ {ljust_jp('01 Day', 10)} │ ￥{g01:09.4f}       │ ￥{b01:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_01_disp, 26)}")
             print(f" {code:<2} │ {ljust_jp('07 Days', 10)} │ ￥{g07:09.4f}       │ ￥{b07:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_07_disp, 26)}")
             print(f" {code:<2} │ {ljust_jp('30 Days', 10)} │ ￥{g30:09.4f}       │ ￥{b30:09.4f}       │ {ljust_jp(free_limit_str, 26)} │ {ljust_jp(used_30_disp, 26)}")
+
+    # --------------------------------------------------------------------------
+    # 【表②】 直前スナップショットからの差分 (Diff) モニタリング表示 (差分モード時のみ)
+    # --------------------------------------------------------------------------
+    if is_snap:
+        snap_since_str = delta_data.get("snap_since", "直前の計測点")
+        print("\n" + "=" * 122)
+        print(f"⚡ 【表②】 直前スナップショット ({snap_since_str}) からの操作差分 (Diff) モニタリング")
+        print(f" (注: 前回計測からの経過時間: {snap_elapsed_seconds:.0f}秒 / この間に新たに行われた増分リソース消費のみを表示しています)")
+        print("=" * 122)
+
+        eval_counters = delta_data.get("counters", {})
+        for mkey, meta in metric_catalog.items():
+            label = meta["label"]
+            unit = meta["unit"]
+            diff_val = eval_counters.get(mkey, 0.0)
+
+            if mkey in PROVISIONED_SERVICES and snap_elapsed_seconds > 0:
+                live_nodes = diff_val / 720.0
+                diff_val = live_nodes * (snap_elapsed_seconds / 3600.0)
+
+            diff_disp = fmt_val(diff_val, unit)
+            print(f"  ・{ljust_jp(label, 30)}: 新規増分 {diff_disp}")
 
     # --------------------------------------------------------------------------
     # 🚨 放置ゾンビリソース警告アラートの表示
