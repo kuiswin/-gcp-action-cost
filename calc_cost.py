@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-GCP Action Cost Profiler (Ultra-Fast 1000-Log 4-Window Engine)
+GCP Action Cost Profiler (Ultra-Compact 1000-Log 4-Window Engine)
 --------------------------------------------------------------------------------
 ・データアクセス監査ログ 1000件一括解析 (API閲覧料金: ￥0 完全無料)
 ・4時間枠マルチ判定 【直近5分間】 / 【直近30分間】 / 【直近1時間】 / 【直近24時間】
-・単位列を分離外出しし、Terminal Table 表示崩れなしの完全整列レイアウト
+・横幅コンパクト化 (全端末折り返しなしの最適フィット幅)
 ・実測数量 ＆ 完全確定原価プロファイル (無料枠控除なしの純原価)
 --------------------------------------------------------------------------------
 """
@@ -194,7 +194,7 @@ def main():
         except Exception:
             pass
 
-    # 実測エビデンスフォールバック (成果物ファイルからの厳密カウント)
+    # 実測エビデンスフォールバック
     gcs_img_count = 0
     try:
         img_check = subprocess.run([get_gcloud_cmd(), "storage", "ls", f"gs://{project_id}*/**"], capture_output=True, text=True, timeout=2)
@@ -236,20 +236,21 @@ def main():
         "gcs_read_ops":          {"label": "Cloud Storage Read",             "cat": "💾 ストレージ",          "unit": "回",           "price_jpy": 0.000062},
         "cloud_run_cpu_seconds": {"label": "Cloud Run CPU",                  "cat": "☁️ アプリ実行",        "unit": "vCPU秒",       "price_jpy": 0.0000372},
         "cloud_run_requests":    {"label": "Cloud Run Request",              "cat": "☁️ アプリ実行",        "unit": "回",           "price_jpy": 0.000000062},
-        "spanner_node_hours":    {"label": "Cloud Spanner Node",             "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間",   "price_jpy": 232.5000},
-        "bigtable_node_hours":   {"label": "Cloud Bigtable Node",            "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間",   "price_jpy": 124.0000},
-        "pubsub_publish_ops":    {"label": "Pub/Sub Push通信回数",           "cat": "📦 インフラ・ログ",      "unit": "回",           "price_jpy": 0.00001},
-        "secret_access_ops":     {"label": "Secret Manager アクセス",        "cat": "📦 インフラ・ログ",      "unit": "10k回",        "price_jpy": 0.0093},
-        "bq_queries":            {"label": "BigQuery クエリ",                "cat": "📦 インフラ・ログ",      "unit": "TB",           "price_jpy": 775.0000},
-        "artifact_registry_ops": {"label": "Artifact Registry ストレージ",   "cat": "📦 インフラ・ログ",      "unit": "GB",           "price_jpy": 0.015},
-        "cloud_build_ops":       {"label": "Cloud Build 実行",               "cat": "📦 インフラ・ログ",      "unit": "ビルド分",     "price_jpy": 0.465},
+        "spanner_node_hours":    {"label": "Cloud Spanner Node",             "cat": "⚡ 定常枠",              "unit": "ノード時間",   "price_jpy": 232.5000},
+        "bigtable_node_hours":   {"label": "Cloud Bigtable Node",            "cat": "⚡ 定常枠",              "unit": "ノード時間",   "price_jpy": 124.0000},
+        "pubsub_publish_ops":    {"label": "Pub/Sub Push通信",               "cat": "📦 インフラ",            "unit": "回",           "price_jpy": 0.00001},
+        "secret_access_ops":     {"label": "Secret Manager アクセス",        "cat": "📦 インフラ",            "unit": "10k回",        "price_jpy": 0.0093},
+        "bq_queries":            {"label": "BigQuery クエリ",                "cat": "📦 インフラ",            "unit": "TB",           "price_jpy": 775.0000},
+        "artifact_registry_ops": {"label": "Artifact Registry",              "cat": "📦 インフラ",            "unit": "GB",           "price_jpy": 0.015},
+        "cloud_build_ops":       {"label": "Cloud Build 実行",               "cat": "📦 インフラ",            "unit": "ビルド分",     "price_jpy": 0.465},
     }
 
-    print("================================================================================================================================================------------------------------")
-    print("🏆 【本ハンズオン 4時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
-    print("================================================================================================================================================------------------------------")
-    print(f"  {ljust_jp('【直近 5分間】', 22)} │ {ljust_jp('【直近 30分間】', 22)} │ {ljust_jp('【直近 1時間】', 22)} │ {ljust_jp('【直近 24時間】', 22)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
-    print("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+    line_w = 113
+    print("=" * line_w)
+    print("🏆 【本ハンズオン 4時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件解析 / API閲覧: ￥0 無料)")
+    print("=" * line_w)
+    print(f"  {ljust_jp('直近 5分間', 13)} │ {ljust_jp('直近 30分間', 13)} │ {ljust_jp('直近 1時間', 13)} │ {ljust_jp('直近 24時間', 13)} │ {ljust_jp('単位', 9)} │ {ljust_jp('区分', 14)} │ {ljust_jp('サービス・リソース名', 24)}")
+    print("-" * line_w)
 
     profile_items = []
     tot_5m, tot_30m, tot_1h, tot_24h = 0.0, 0.0, 0.0, 0.0
@@ -289,25 +290,25 @@ def main():
     has_separator = False
     for item in profile_items:
         if item["sort_priority"] == 3 and not has_separator:
-            print("  " + "┈" * 168)
+            print("  " + "┈" * 109)
             has_separator = True
 
-        col_5m  = f"￥{item['c_5m']:7.4f} ({fmt_qty(item['q_5m'])})"  if item['q_5m'] > 0  else "￥ 0.0000 (0)"
-        col_30m = f"￥{item['c_30m']:7.4f} ({fmt_qty(item['q_30m'])})" if item['q_30m'] > 0 else "￥ 0.0000 (0)"
-        col_1h  = f"￥{item['c_1h']:7.4f} ({fmt_qty(item['q_1h'])})"   if item['q_1h'] > 0  else "￥ 0.0000 (0)"
-        col_24h = f"￥{item['c_24h']:7.4f} ({fmt_qty(item['q_24h'])})"  if item['q_24h'] > 0 else "￥ 0.0000 (0)"
+        col_5m  = f"￥{item['c_5m']:6.4f}({fmt_qty(item['q_5m'])})"  if item['q_5m'] > 0  else "￥0.0000(0)"
+        col_30m = f"￥{item['c_30m']:6.4f}({fmt_qty(item['q_30m'])})" if item['q_30m'] > 0 else "￥0.0000(0)"
+        col_1h  = f"￥{item['c_1h']:6.4f}({fmt_qty(item['q_1h'])})"   if item['q_1h'] > 0  else "￥0.0000(0)"
+        col_24h = f"￥{item['c_24h']:6.4f}({fmt_qty(item['q_24h'])})"  if item['q_24h'] > 0 else "￥0.0000(0)"
 
-        print(f"  {ljust_jp(col_5m, 22)} │ {ljust_jp(col_30m, 22)} │ {ljust_jp(col_1h, 22)} │ {ljust_jp(col_24h, 22)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 30)}")
+        print(f"  {ljust_jp(col_5m, 13)} │ {ljust_jp(col_30m, 13)} │ {ljust_jp(col_1h, 13)} │ {ljust_jp(col_24h, 13)} │ {ljust_jp(item['unit'], 9)} │ {ljust_jp(item['cat'], 14)} │ {ljust_jp(item['label'], 24)}")
 
-    print("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print("-" * line_w)
     print(" 💰 【時間枠別・合計確定原価サマリー】")
     print(f"    🔹 ⚡ 【直近 5分間】  : ￥{tot_5m:,.4f} / 回")
     print(f"    🔹 ⚡ 【直近 30分間】 : ￥{tot_30m:,.4f} / 回")
     print(f"    🔹 ⏱️ 【直近 1時間】  : ￥{tot_1h:,.4f} / 回")
     print(f"    🔹 📅 【直近 24時間】 : ￥{tot_24h:,.4f} / 回")
-    print("================================================================================================================================================------------------------------")
-    print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 (データアクセスログ 1000件一括解析 / 監査ログAPI閲覧料金: ￥0 完全無料)")
-    print("================================================================================================================================================------------------------------")
+    print("=" * line_w)
+    print(f"⚡ 処理時間: {time.time() - t0:.3f}秒 (データアクセスログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
+    print("=" * line_w)
 
 if __name__ == "__main__":
     main()
