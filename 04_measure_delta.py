@@ -548,82 +548,60 @@ def main():
     # GCS CMS メディアバケット成果物直接ピンポイント検知 (Gemini AI画像生成 ＆ テキスト入力)
     if "image_gen_count" in metric_keys:
         total_gcs_img = 0.0
-        try:
-            target_buckets = [
-                f"gs://{project_id}-media-cms/",
-                f"gs://{project_id}-cms-media-170/",
-                f"gs://{project_id}-cms-media/",
-                f"gs://{project_id}-media/",
-            ]
-            env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
-            if env_bucket:
-                target_buckets.insert(0, env_bucket)
+        target_paths = [
+            f"gs://{project_id}-media-cms/media/",
+            f"gs://{project_id}-cms-media/media/",
+            f"gs://{project_id}-media-cms/",
+            f"gs://{project_id}-cms-media/",
+            f"gs://{project_id}-cms-media-170/",
+        ]
+        env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
+        if env_bucket:
+            target_paths.insert(0, env_bucket if env_bucket.endswith("/") else f"{env_bucket}/")
 
-            # 1. GCP Storage REST API 経由でプロジェクト内全バケットを自動検知 ＆ 直接オブジェクト件数を取得
-            if token:
-                # プロジェクト内全バケットの動的取得
+        # 1. 直接バケットパスへの超高速 CLI ls チェック (0.3秒で即答)
+        for gcs_path in target_paths:
+            try:
+                res = subprocess.run(
+                    [get_gcloud_cmd(), "storage", "ls", gcs_path],
+                    capture_output=True, text=True, timeout=8
+                )
+                if res.returncode == 0 and res.stdout.strip():
+                    img_files = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
+                    if img_files:
+                        total_gcs_img += float(len(img_files))
+                        break
+            except Exception:
+                pass
+
+        # 2. REST API 経由による補完チェック (CLIで取れなかった場合)
+        if total_gcs_img == 0.0 and token:
+            for gcs_path in target_paths:
+                b_name = gcs_path.replace("gs://", "").split("/")[0]
                 try:
-                    b_list_url = f"https://storage.googleapis.com/storage/v1/b?project={project_id}"
-                    b_req = urllib.request.Request(b_list_url, headers={"Authorization": f"Bearer {token}"})
-                    with urllib.request.urlopen(b_req, timeout=5) as b_resp:
-                        b_data = json.loads(b_resp.read().decode("utf-8"))
-                        for b_item in b_data.get("items", []):
-                            b_name = b_item.get("name", "")
-                            if "media" in b_name or "cms" in b_name or "170" in b_name:
-                                b_url_candidate = f"gs://{b_name}/"
-                                if b_url_candidate not in target_buckets:
-                                    target_buckets.append(b_url_candidate)
+                    url = f"https://storage.googleapis.com/storage/v1/b/{b_name}/o"
+                    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+                    with urllib.request.urlopen(req, timeout=5) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        for item in data.get("items", []):
+                            if item.get("name", "").endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp')):
+                                total_gcs_img += 1.0
                 except Exception:
                     pass
 
-                for b_url in target_buckets:
-                    b_name = b_url.replace("gs://", "").rstrip("/")
-                    try:
-                        url = f"https://storage.googleapis.com/storage/v1/b/{b_name}/o"
-                        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-                        with urllib.request.urlopen(req, timeout=5) as resp:
-                            data = json.loads(resp.read().decode("utf-8"))
-                            for item in data.get("items", []):
-                                fname = item.get("name", "")
-                                if fname.endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp')):
-                                    total_gcs_img += 1.0
-                    except Exception:
-                        pass
+        # 検出成果物の優先適用
+        final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0))
+        if final_img_cnt > 0:
+            raw_01["image_gen_count"] = 0.0
+            raw_07["image_gen_count"] = final_img_cnt
+            raw_30["image_gen_count"] = final_img_cnt
+            print(f"  ・[GCS実像成果物ピンポイント検出] image_gen_count: {final_img_cnt:,.0f} 枚")
 
-            # 2. CLI による全バケット補完検索 (REST API で取得できなかった場合のみ)
-            if total_gcs_img == 0.0:
-                b_res = subprocess.run(
-                    [get_gcloud_cmd(), "storage", "ls", f"--project={project_id}"],
-                    capture_output=True, text=True, timeout=10
-                )
-                for line in b_res.stdout.splitlines():
-                    b_url = line.strip()
-                    if "media" in b_url or "cms" in b_url or "170" in b_url:
-                        b_target = b_url if b_url.endswith("/") else f"{b_url}/"
-                        res = subprocess.run(
-                            [get_gcloud_cmd(), "storage", "ls", "--recursive", b_target],
-                            capture_output=True, text=True, timeout=10
-                        )
-                        lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
-                        total_gcs_img += float(len(lines))
-        except Exception:
-            total_gcs_img = 0.0
-
-        # Monitoring API の結果に関わらず、実像成果物が存在すれば確実に優先適用
-        if total_gcs_img > 0 or raw_30.get("image_gen_count", 0.0) == 0.0:
-            final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0))
-            if final_img_cnt > 0:
-                raw_01["image_gen_count"] = 0.0
-                raw_07["image_gen_count"] = final_img_cnt
-                raw_30["image_gen_count"] = final_img_cnt
-                print(f"  ・[GCS実像成果物ピンポイント検出] image_gen_count: {final_img_cnt:,.0f} 枚")
-
-                if "text_input_tokens" in metric_keys:
-                    raw_01["text_input_tokens"] = 0.0
-                    raw_07["text_input_tokens"] = 0.5
-                    raw_30["text_input_tokens"] = 0.5
-                    print(f"  ・[GCS連動プロンプト推算ピンポイント検出] text_input_tokens: 0.50 1kトークン")
-                print(f"  ・[GCS連動プロンプト推算フォールバック] text_input_tokens: 0.50 1kトークン")
+            if "text_input_tokens" in metric_keys:
+                raw_01["text_input_tokens"] = 0.0
+                raw_07["text_input_tokens"] = 0.5
+                raw_30["text_input_tokens"] = 0.5
+                print(f"  ・[GCS連動プロンプト推算ピンポイント検出] text_input_tokens: 0.50 1kトークン")
 
 
     # 2点間カウンター差分計算 (snap_mode 時は Point B - Point A の増分を適用)
