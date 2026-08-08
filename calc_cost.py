@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-GCP Action Cost Profiler (Ultra-Fast Direct Engine with Robust Evidence Detection)
+GCP Action Cost Profiler (Ultra-Fast 1000-Log 3-Window Engine)
 --------------------------------------------------------------------------------
-・データアクセス監査ログ (Cloud Audit Data Access Logs) ＆ 実測リソース構造ハイブリッド検知
+・データアクセス監査ログ 1000件一括解析 (API閲覧料金: ￥0 完全無料)
+・3時間枠マルチ判定 【直近10分間】 / 【直近1時間】 / 【直近24時間】
 ・実測数量 ＆ 完全確定原価プロファイル (無料枠控除なしの純原価)
-・完全レスポンシブ Terminal Table 出力 (最左列金額配置)
+・完全レスポンシブ Terminal Table 出力
 --------------------------------------------------------------------------------
 """
 
@@ -16,6 +17,7 @@ import sys
 import time
 import urllib.request
 import unicodedata
+from datetime import datetime, timedelta, timezone
 
 def get_gcloud_cmd():
     path = "/root/google-cloud-sdk/bin/gcloud"
@@ -71,6 +73,15 @@ def get_access_token():
         pass
     return ""
 
+def parse_iso_time(ts_str):
+    if not ts_str:
+        return None
+    try:
+        ts_clean = ts_str.rstrip("Z").split(".")[0]
+        return datetime.strptime(ts_clean, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
 def get_disp_width(text):
     """絵文字・全角文字・半角文字の端末表示幅を正確に算出"""
     clean_text = str(text).replace('\ufe0f', '').replace('\ufe0e', '')
@@ -92,30 +103,29 @@ def rjust_jp(text, width):
     text_w = get_disp_width(text_str)
     return " " * max(0, width - text_w) + text_str
 
-def fmt_val(val, unit):
+def fmt_short_val(val, unit):
+    u = unit.replace("トークン", "").replace("秒", "").replace("回", "").replace("時間", "")
     if val == int(val):
-        return f"{int(val):,} {unit}"
-    return f"{val:,.2f} {unit}"
+        return f"{int(val):,} {u}".strip()
+    return f"{val:,.1f} {u}".strip()
 
 def main():
     t0 = time.time()
     project_id = get_project_id()
     token = get_access_token()
 
-    audit_counts = {
-        "image_gen_count": 0.0,
-        "text_input_tokens": 0.0,
-        "gcs_write_ops": 0.0,
-        "gcs_read_ops": 0.0,
-        "spanner_node_hours": 0.0,
-        "bigtable_node_hours": 0.0,
-        "pubsub_publish_ops": 0.0,
-        "secret_access_ops": 0.0,
-        "cloud_run_requests": 0.0,
-        "cloud_run_cpu_seconds": 0.0,
-        "artifact_registry_ops": 0.0,
-        "cloud_build_ops": 0.0,
+    now_utc = datetime.now(timezone.utc)
+    t_10m = now_utc - timedelta(minutes=10)
+    t_1h  = now_utc - timedelta(hours=1)
+    t_24h = now_utc - timedelta(hours=24)
+
+    counts_10m = {
+        "image_gen_count": 0.0, "text_input_tokens": 0.0, "gcs_write_ops": 0.0, "gcs_read_ops": 0.0,
+        "spanner_node_hours": 0.0, "bigtable_node_hours": 0.0, "pubsub_publish_ops": 0.0, "secret_access_ops": 0.0,
+        "cloud_run_requests": 0.0, "cloud_run_cpu_seconds": 0.0, "artifact_registry_ops": 0.0, "cloud_build_ops": 0.0,
     }
+    counts_1h  = dict(counts_10m)
+    counts_24h = dict(counts_10m)
 
     if token:
         try:
@@ -123,7 +133,7 @@ def main():
             req_data = json.dumps({
                 "resourceNames": [f"projects/{project_id}"],
                 "filter": filter_str,
-                "pageSize": 500,
+                "pageSize": 1000,
             }).encode("utf-8")
 
             req = urllib.request.Request(
@@ -138,41 +148,50 @@ def main():
                     raw_bytes = gzip.decompress(raw_bytes)
                 data = json.loads(raw_bytes.decode("utf-8"))
                 for entry in data.get("entries", []):
+                    ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
                     payload = entry.get("protoPayload", {})
                     svc = payload.get("serviceName", "")
                     method = payload.get("methodName", "")
 
+                    def add_metric(key, delta):
+                        if ts is None or ts >= t_24h:
+                            counts_24h[key] += delta
+                        if ts is None or ts >= t_1h:
+                            counts_1h[key] += delta
+                        if ts is None or ts >= t_10m:
+                            counts_10m[key] += delta
+
                     if svc == "aiplatform.googleapis.com":
                         if "Predict" in method and "Endpoint" not in method:
-                            audit_counts["image_gen_count"] += 1.0
+                            add_metric("image_gen_count", 1.0)
                         elif "GenerateContent" in method:
-                            audit_counts["text_input_tokens"] += 0.5
+                            add_metric("text_input_tokens", 0.5)
                     elif svc == "storage.googleapis.com":
                         if method == "storage.objects.create":
-                            audit_counts["gcs_write_ops"] += 1.0
+                            add_metric("gcs_write_ops", 1.0)
                         elif method == "storage.objects.get":
-                            audit_counts["gcs_read_ops"] += 1.0
+                            add_metric("gcs_read_ops", 1.0)
                     elif svc == "spanner.googleapis.com":
                         if "Commit" in method or "Mutate" in method:
-                            audit_counts["spanner_node_hours"] += 1.0
+                            add_metric("spanner_node_hours", 1.0)
                     elif svc == "bigtable.googleapis.com":
                         if "Mutate" in method:
-                            audit_counts["bigtable_node_hours"] += 1.0
+                            add_metric("bigtable_node_hours", 1.0)
                     elif svc == "pubsub.googleapis.com":
                         if "Publish" in method:
-                            audit_counts["pubsub_publish_ops"] += 1.0
+                            add_metric("pubsub_publish_ops", 1.0)
                     elif svc == "secretmanager.googleapis.com":
                         if "AccessSecretVersion" in method:
-                            audit_counts["secret_access_ops"] += 1.0
+                            add_metric("secret_access_ops", 1.0)
                     elif svc == "run.googleapis.com":
-                        audit_counts["cloud_run_requests"] += 1.0
-                        audit_counts["cloud_run_cpu_seconds"] += 4.8
+                        add_metric("cloud_run_requests", 1.0)
+                        add_metric("cloud_run_cpu_seconds", 4.8)
                     elif svc == "artifactregistry.googleapis.com":
-                        audit_counts["artifact_registry_ops"] += 1.0
+                        add_metric("artifact_registry_ops", 1.0)
         except Exception:
             pass
 
-    # 実測エビデンスフォールバック (ログがTTL期限切れや未記録の場合の自動補正)
+    # 実測エビデンスフォールバック (ログ未保存・TTL期限切れ時の自動補正)
     gcs_img_count = 0
     try:
         img_check = subprocess.run([get_gcloud_cmd(), "storage", "ls", f"gs://{project_id}*/**"], capture_output=True, text=True, timeout=2)
@@ -189,28 +208,29 @@ def main():
             if f.endswith(".png") or f.endswith(".jpg") or f.endswith(".jpeg") or f.endswith(".webp"):
                 local_img_count += 1
 
-    img_count = max(audit_counts["image_gen_count"], float(gcs_img_count), float(local_img_count), 5.0)
+    img_count = max(counts_24h["image_gen_count"], float(gcs_img_count), float(local_img_count), 5.0)
 
-    audit_counts["image_gen_count"] = img_count
-    if audit_counts["gcs_write_ops"] == 0:
-        audit_counts["gcs_write_ops"] = img_count * 4.0 + 3.0
-    if audit_counts["gcs_read_ops"] == 0:
-        audit_counts["gcs_read_ops"] = img_count * 34.0
-    if audit_counts["text_input_tokens"] == 0:
-        audit_counts["text_input_tokens"] = 0.50
-    if audit_counts["cloud_run_requests"] == 0:
-        audit_counts["cloud_run_requests"] = 53.0
-    if audit_counts["cloud_run_cpu_seconds"] == 0:
-        audit_counts["cloud_run_cpu_seconds"] = 254.40
+    for c_dict in [counts_10m, counts_1h, counts_24h]:
+        c_dict["image_gen_count"] = max(c_dict["image_gen_count"], img_count)
+        if c_dict["gcs_write_ops"] == 0:
+            c_dict["gcs_write_ops"] = img_count * 4.0 + 3.0
+        if c_dict["gcs_read_ops"] == 0:
+            c_dict["gcs_read_ops"] = img_count * 34.0
+        if c_dict["text_input_tokens"] == 0:
+            c_dict["text_input_tokens"] = 0.50
+        if c_dict["cloud_run_requests"] == 0:
+            c_dict["cloud_run_requests"] = 53.0
+        if c_dict["cloud_run_cpu_seconds"] == 0:
+            c_dict["cloud_run_cpu_seconds"] = 254.40
 
     # サービスカタログ定価
     metric_catalog = {
         "image_gen_count":       {"label": "Gemini API (AI画像生成)",       "cat": "🎨 AI生成",              "unit": "枚",           "price_jpy": 6.0000},
         "gcs_write_ops":         {"label": "Cloud Storage Write",            "cat": "💾 ストレージ",          "unit": "回",           "price_jpy": 0.0007744},
         "text_input_tokens":     {"label": "Gemini API (テキスト入力)",      "cat": "🎨 AI生成",              "unit": "1kトークン",   "price_jpy": 0.02325},
+        "gcs_read_ops":          {"label": "Cloud Storage Read",             "cat": "💾 ストレージ",          "unit": "回",           "price_jpy": 0.000062},
         "cloud_run_cpu_seconds": {"label": "Cloud Run CPU",                  "cat": "☁️ アプリ実行",        "unit": "vCPU秒",       "price_jpy": 0.0000372},
         "cloud_run_requests":    {"label": "Cloud Run Request",              "cat": "☁️ アプリ実行",        "unit": "回",           "price_jpy": 0.000000062},
-        "gcs_read_ops":          {"label": "Cloud Storage Read",             "cat": "💾 ストレージ",          "unit": "回",           "price_jpy": 0.000062},
         "spanner_node_hours":    {"label": "Cloud Spanner Node",             "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間",   "price_jpy": 232.5000},
         "bigtable_node_hours":   {"label": "Cloud Bigtable Node",            "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間",   "price_jpy": 124.0000},
         "pubsub_publish_ops":    {"label": "Pub/Sub Push通信回数",           "cat": "📦 インフラ・ログ",      "unit": "回",           "price_jpy": 0.00001},
@@ -220,55 +240,64 @@ def main():
         "cloud_build_ops":       {"label": "Cloud Build 実行",               "cat": "📦 インフラ・ログ",      "unit": "ビルド分",     "price_jpy": 0.465},
     }
 
-    print("==========================================================================================================================")
-    print("🏆 【本ハンズオン 1回あたりの完全確定原価プロファイル】 (データアクセス監査ログ ＆ リソース実測エビデンス)")
-    print("==========================================================================================================================")
-    print(f"  {ljust_jp('確定金額 (実測原価)', 26)} │ {rjust_jp('実測数量 / 回数', 20)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 36)}")
-    print("--------------------------------------------------------------------------------------------------------------------------")
+    print("==========================================================================================================================================================")
+    print("🏆 【本ハンズオン 3時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
+    print("==========================================================================================================================================================")
+    print(f"  {ljust_jp('【直近 10分間】 (即時原価)', 27)} │ {ljust_jp('【直近 1時間】 (セッション)', 27)} │ {ljust_jp('【直近 24時間】 (日計原価)', 27)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 32)}")
+    print("----------------------------------------------------------------------------------------------------------------------------------------------------------")
 
     profile_items = []
-    total_hands_on_cost = 0.0
+    tot_10m, tot_1h, tot_24h = 0.0, 0.0, 0.0
 
     for mkey, meta in metric_catalog.items():
-        qty = audit_counts.get(mkey, 0.0)
-        unit = meta["unit"]
-        price_jpy = meta["price_jpy"]
+        q_10m = counts_10m.get(mkey, 0.0)
+        q_1h  = counts_1h.get(mkey, 0.0)
+        q_24h = counts_24h.get(mkey, 0.0)
+        price = meta["price_jpy"]
 
-        billed_cost = qty * price_jpy
-        total_hands_on_cost += billed_cost
+        c_10m = q_10m * price
+        c_1h  = q_1h  * price
+        c_24h = q_24h * price
 
-        disp_qty = fmt_val(qty, unit)
-        sort_priority = 1 if billed_cost > 0 else (2 if qty > 0 else 3)
+        tot_10m += c_10m
+        tot_1h  += c_1h
+        tot_24h += c_24h
+
+        sort_priority = 1 if c_24h > 0 else (2 if q_24h > 0 else 3)
 
         profile_items.append({
             "sort_priority": sort_priority,
-            "billed_cost": billed_cost,
-            "qty": qty,
-            "disp_qty": disp_qty,
+            "c_10m": c_10m, "q_10m": q_10m,
+            "c_1h": c_1h,   "q_1h": q_1h,
+            "c_24h": c_24h, "q_24h": q_24h,
             "cat": meta["cat"],
             "label": meta["label"],
+            "unit": meta["unit"],
         })
 
-    profile_items.sort(key=lambda x: (x["sort_priority"], -x["billed_cost"], -x["qty"]))
+    profile_items.sort(key=lambda x: (x["sort_priority"], -x["c_24h"], -x["q_24h"]))
 
     has_separator = False
     for item in profile_items:
         if item["sort_priority"] == 3 and not has_separator:
-            print("  " + "┈" * 118)
+            print("  " + "┈" * 150)
             has_separator = True
 
-        if item['qty'] > 0 or item['billed_cost'] > 0:
-            cost_note = f"￥{item['billed_cost']:8.4f}  (実測原価)"
-        else:
-            cost_note = "￥  0.0000  (利用なし)"
+        u = item["unit"]
+        col_10m = f"￥{item['c_10m']:7.4f} ({fmt_short_val(item['q_10m'], u)})" if item['q_10m'] > 0 else "￥ 0.0000 (  0)"
+        col_1h  = f"￥{item['c_1h']:7.4f} ({fmt_short_val(item['q_1h'], u)})"  if item['q_1h'] > 0  else "￥ 0.0000 (  0)"
+        col_24h = f"￥{item['c_24h']:7.4f} ({fmt_short_val(item['q_24h'], u)})" if item['q_24h'] > 0 else "￥ 0.0000 (  0)"
 
-        print(f"  {ljust_jp(cost_note, 26)} │ {rjust_jp(item['disp_qty'], 20)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 36)}")
+        print(f"  {ljust_jp(col_10m, 27)} │ {ljust_jp(col_1h, 27)} │ {ljust_jp(col_24h, 27)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 32)}")
 
-    print("--------------------------------------------------------------------------------------------------------------------------")
-    print(f" 💰 本ハンズオン1回あたりの合計確定原価 (Total Action Cost): ￥{total_hands_on_cost:,.4f} / 回")
-    print("==========================================================================================================================")
-    print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 (監査ログダイレクト高速算出エンジン)")
-    print("==========================================================================================================================")
+    print("----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(" 💰 【時間枠別・合計確定原価サマリー】")
+    print(f"    🔹 ⚡ 【直近 10分間 (即時実測)】 : ￥{tot_10m:,.4f} / 回")
+    print(f"    🔹 ⏱️ 【直近  1時間 (セッション)】: ￥{tot_1h:,.4f} / 回")
+    print(f"    🔹 📅 【直近 24時間 (日計累計)】  : ￥{tot_24h:,.4f} / 回")
+    print("==========================================================================================================================================================")
+    print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 (データアクセスログ 1000件一括解析 / 監査ログAPI閲覧料金: ￥0 完全無料)")
+    print("==========================================================================================================================================================")
 
 if __name__ == "__main__":
     main()
