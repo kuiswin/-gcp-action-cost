@@ -564,8 +564,9 @@ def main():
                         target_buckets.append(b_url)
 
             for b_url in target_buckets:
+                b_target = b_url if b_url.endswith("/") else f"{b_url}/"
                 res = subprocess.run(
-                    [get_gcloud_cmd(), "storage", "ls", f"{b_url.rstrip('/')}/**"],
+                    [get_gcloud_cmd(), "storage", "ls", "--recursive", b_target],
                     capture_output=True, text=True
                 )
                 lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
