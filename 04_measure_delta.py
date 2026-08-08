@@ -549,28 +549,47 @@ def main():
     if "image_gen_count" in metric_keys:
         total_gcs_img = 0.0
         try:
-            target_buckets = []
+            target_buckets = [
+                f"gs://{project_id}-cms-media-170/",
+                f"gs://{project_id}-cms-media/",
+                f"gs://{project_id}-media/",
+            ]
             env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
             if env_bucket:
-                target_buckets.append(env_bucket)
-            else:
+                target_buckets.insert(0, env_bucket)
+
+            # 1. GCP Storage REST API 経由で高速・直接オブジェクト件数を取得 (CLI依存なし)
+            if token:
+                for b_url in target_buckets:
+                    b_name = b_url.replace("gs://", "").rstrip("/")
+                    try:
+                        url = f"https://storage.googleapis.com/storage/v1/b/{b_name}/o"
+                        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+                        with urllib.request.urlopen(req, timeout=5) as resp:
+                            data = json.loads(resp.read().decode("utf-8"))
+                            for item in data.get("items", []):
+                                fname = item.get("name", "")
+                                if fname.endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp')):
+                                    total_gcs_img += 1.0
+                    except Exception:
+                        pass
+
+            # 2. CLI による全バケット補完検索 (REST API で取得できなかった場合のみ)
+            if total_gcs_img == 0.0:
                 b_res = subprocess.run(
-                    [get_gcloud_cmd(), "storage", "ls"],
-                    capture_output=True, text=True
+                    [get_gcloud_cmd(), "storage", "ls", f"--project={project_id}"],
+                    capture_output=True, text=True, timeout=10
                 )
                 for line in b_res.stdout.splitlines():
                     b_url = line.strip()
                     if "media" in b_url or "cms" in b_url or "170" in b_url:
-                        target_buckets.append(b_url)
-
-            for b_url in target_buckets:
-                b_target = b_url if b_url.endswith("/") else f"{b_url}/"
-                res = subprocess.run(
-                    [get_gcloud_cmd(), "storage", "ls", "--recursive", b_target],
-                    capture_output=True, text=True
-                )
-                lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
-                total_gcs_img += float(len(lines))
+                        b_target = b_url if b_url.endswith("/") else f"{b_url}/"
+                        res = subprocess.run(
+                            [get_gcloud_cmd(), "storage", "ls", "--recursive", b_target],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
+                        total_gcs_img += float(len(lines))
         except Exception:
             total_gcs_img = 0.0
 
