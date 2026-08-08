@@ -608,8 +608,8 @@ def main():
                 except Exception:
                     pass
 
-def query_audit_logs(project_id):
-    """データアクセス監査ログ (Cloud Audit Data Access Logs) から最新の精密操作件数を全一括検出"""
+def query_audit_logs(project_id, token=None):
+    """データアクセス監査ログ (Cloud Audit Data Access Logs) から最新の精密操作件数をダイレクトREST APIで超高速全一括検出"""
     audit_counts = {
         "image_gen_count": 0.0,
         "text_input_tokens": 0.0,
@@ -626,17 +626,24 @@ def query_audit_logs(project_id):
         "cloud_run_ops": 0.0,
     }
     try:
-        cmd = [
-            get_gcloud_cmd(), "logging", "read",
-            f'logName="projects/{project_id}/logs/cloudaudit.googleapis.com%2Fdata_access" AND NOT protoPayload.serviceName="cloudaicompanion.googleapis.com" AND NOT protoPayload.serviceName="cloudbilling.googleapis.com"',
-            f"--project={project_id}",
-            "--limit=2000",
-            "--format=json",
-            "--quiet"
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
-        if res.returncode == 0 and res.stdout.strip():
-            entries = json.loads(res.stdout)
+        if not token:
+            token = get_access_token()
+
+        req_data = json.dumps({
+            "resourceNames": [f"projects/{project_id}"],
+            "filter": f'logName="projects/{project_id}/logs/cloudaudit.googleapis.com%2Fdata_access" AND NOT protoPayload.serviceName="cloudaicompanion.googleapis.com" AND NOT protoPayload.serviceName="cloudbilling.googleapis.com"',
+            "pageSize": 1000,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://logging.googleapis.com/v2/entries:list",
+            data=req_data,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        )
+
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            entries = data.get("entries", [])
             for entry in entries:
                 payload = entry.get("protoPayload", {})
                 svc = payload.get("serviceName", "")
@@ -679,7 +686,7 @@ def query_audit_logs(project_id):
     return audit_counts
 
     # 検出成果物の優先適用
-    audit_logs_data = query_audit_logs(project_id)
+    audit_logs_data = query_audit_logs(project_id, token)
     final_img_cnt = max(total_gcs_img, raw_30.get("image_gen_count", 0.0), audit_logs_data.get("image_gen_count", 0.0))
     if final_img_cnt > 0:
         raw_01["image_gen_count"] = 0.0
