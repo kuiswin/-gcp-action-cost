@@ -437,14 +437,29 @@ def main():
 
     # Gemini API / Vertex AI 画像生成枚数の自動集計
     if "image_gen_count" in metric_keys:
+        total_img = 0.0
         try:
-            media_bucket = f"{project_id}-cms-media"
-            res = subprocess.run(
-                ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"gs://{media_bucket}/media/*"],
-                capture_output=True, text=True
-            )
-            lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg'))]
-            total_img = float(len(lines))
+            target_buckets = []
+            env_bucket = os.environ.get("CMS_MEDIA_BUCKET", "").strip()
+            if env_bucket:
+                target_buckets.append(env_bucket)
+            else:
+                b_res = subprocess.run(
+                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls"],
+                    capture_output=True, text=True
+                )
+                for line in b_res.stdout.splitlines():
+                    b_url = line.strip()
+                    if "media" in b_url or "cms" in b_url:
+                        target_buckets.append(b_url)
+
+            for b_url in target_buckets:
+                res = subprocess.run(
+                    ["/root/google-cloud-sdk/bin/gcloud", "storage", "ls", f"{b_url.rstrip('/')}/**"],
+                    capture_output=True, text=True
+                )
+                lines = [l for l in res.stdout.splitlines() if l.strip().endswith(('.jpg', '.png', '.svg', '.jpeg', '.webp'))]
+                total_img += float(len(lines))
         except Exception:
             total_img = 0.0
 
