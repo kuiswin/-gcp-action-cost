@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-GCP Action Cost Profiler (4.4 Currency Precision Engine)
+GCP Action Cost Profiler (Fixed-Width 4-Digit Qty & 4.4 Currency Engine)
 --------------------------------------------------------------------------------
 ・データアクセス監査ログ 1000件一括解析 (API閲覧料金: ￥0 完全無料)
-・4時間枠マルチ判定 【直近 5分間】 / 【直近 30分間】 / 【直近 1時間】 / 【直近 24時間】
+・4時間枠マルチ判定 【直近 05分間】 / 【直近 30分間】 / 【直近 01時間】 / 【直近 24時間】
 ・金額表示: 9999.9999円 (4.4桁形式) 完全対応
+・数量表示: (    1), (  0.5), (  120), ( 9999), (0.005) などの4桁・小数固定幅右揃え対応
 ・単位列を分離外出しし、Terminal Table 表示崩れなしの完全整列レイアウト
 ・実測数量 ＆ 完全確定原価プロファイル (無料枠控除なしの純原価)
 --------------------------------------------------------------------------------
@@ -107,7 +108,7 @@ def rjust_jp(text, width):
 def fmt_qty(val):
     if val == int(val):
         return f"{int(val):,}"
-    return f"{val:,.1f}"
+    return f"{val:,.3f}".rstrip("0").rstrip(".")
 
 def main():
     t0 = time.time()
@@ -246,11 +247,11 @@ def main():
         "cloud_build_ops":       {"label": "Cloud Build 実行",               "cat": "📦 インフラ・ログ",      "unit": "ビルド分",     "price_jpy": 0.465},
     }
 
-    line_w = 154
+    line_w = 158
     print("=" * line_w)
     print("🏆 【本ハンズオン 4時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
     print("=" * line_w)
-    print(f"  {ljust_jp('【直近 05分間】', 19)} │ {ljust_jp('【直近 30分間】', 19)} │ {ljust_jp('【直近 01時間】', 19)} │ {ljust_jp('【直近 24時間】', 19)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
+    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
     print("-" * line_w)
 
     profile_items = []
@@ -288,18 +289,24 @@ def main():
 
     profile_items.sort(key=lambda x: (x["sort_priority"], -x["c_24h"], -x["q_24h"]))
 
+    def format_cell(cost, qty):
+        if qty <= 0:
+            return "￥ 0.0000 (    0)"
+        q_str = f"{fmt_qty(qty):>5}"
+        return f"￥{cost:9.4f} ({q_str})"
+
     has_separator = False
     for item in profile_items:
         if item["sort_priority"] == 3 and not has_separator:
-            print("  " + "┈" * 150)
+            print("  " + "┈" * 154)
             has_separator = True
 
-        col_5m  = f"￥{item['c_5m']:9.4f} ({fmt_qty(item['q_5m'])})"  if item['q_5m'] > 0  else "￥ 0.0000 (0)"
-        col_30m = f"￥{item['c_30m']:9.4f} ({fmt_qty(item['q_30m'])})" if item['q_30m'] > 0 else "￥ 0.0000 (0)"
-        col_1h  = f"￥{item['c_1h']:9.4f} ({fmt_qty(item['q_1h'])})"   if item['q_1h'] > 0  else "￥ 0.0000 (0)"
-        col_24h = f"￥{item['c_24h']:9.4f} ({fmt_qty(item['q_24h'])})"  if item['q_24h'] > 0 else "￥ 0.0000 (0)"
+        col_5m  = format_cell(item['c_5m'],  item['q_5m'])
+        col_30m = format_cell(item['c_30m'], item['q_30m'])
+        col_1h  = format_cell(item['c_1h'],  item['q_1h'])
+        col_24h = format_cell(item['c_24h'], item['q_24h'])
 
-        print(f"  {ljust_jp(col_5m, 19)} │ {ljust_jp(col_30m, 19)} │ {ljust_jp(col_1h, 19)} │ {ljust_jp(col_24h, 19)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 30)}")
+        print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 30)}")
 
     print("-" * line_w)
     print(" 💰 【時間枠別・合計確定原価サマリー】")
