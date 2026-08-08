@@ -78,6 +78,7 @@
     "image_gen_count": {
       "metric_type": "serviceruntime.googleapis.com/api/request_count",
       "resource_type": "consumed_api",
+      "extra_filter": "resource.labels.service=\"aiplatform.googleapis.com\" AND metric.labels.method=\"google.cloud.aiplatform.v1.PredictionService.Predict\"",
       "category": "metered"
     },
     "text_input_tokens": {
