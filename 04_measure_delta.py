@@ -37,6 +37,25 @@ def to_jst_str(iso_str):
     except Exception:
         return iso_str
 
+METRIC_PATTERNS = {
+    "request_count":        "cumulative",
+    "cpu_seconds":          "cumulative",
+    "gcs_read_ops":         "cumulative",
+    "gcs_write_ops":        "cumulative",
+    "function_invocations": "cumulative",
+    "query_tb_scanned":     "cumulative",
+    "pubsub_message_bytes": "cumulative",
+    "pubsub_push_requests": "cumulative",
+    "secret_access_ops":    "cumulative",
+    "artifact_storage_gb":  "cumulative",
+    "spanner_node_hours":   "provisioned",
+    "bigtable_node_hours":  "provisioned",
+    "gce_instance_hours":   "provisioned",
+    "alloydb_cpu_hours":    "provisioned",
+    "image_gen_count":      "artifact",
+    "text_input_tokens":    "artifact",
+}
+
 def get_access_token():
     res = subprocess.run(
         [get_gcloud_cmd(), "auth", "print-access-token"],
@@ -695,6 +714,7 @@ def main():
         "counters":             eval_30,
         "month_counters":       month_counters,
         "time_matrix":          time_matrix,
+        "metric_patterns":      METRIC_PATTERNS,
         "zombie_resources":     zombies,
     }
 
