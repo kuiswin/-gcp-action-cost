@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-GCP Action Cost Profiler (Ultra-Fast 1000-Log 3-Window Engine with Accurate Trace)
+GCP Action Cost Profiler (Ultra-Fast 1000-Log 4-Window Engine)
 --------------------------------------------------------------------------------
 ・データアクセス監査ログ 1000件一括解析 (API閲覧料金: ￥0 完全無料)
-・3時間枠マルチ判定 【直近10分間】 / 【直近1時間】 / 【直近24時間】
+・4時間枠マルチ判定 【直近5分間】 / 【直近30分間】 / 【直近1時間】 / 【直近24時間】
+・単位列を分離外出しし、Terminal Table 表示崩れなしの完全整列レイアウト
 ・実測数量 ＆ 完全確定原価プロファイル (無料枠控除なしの純原価)
-・完全レスポンシブ Terminal Table 出力
 --------------------------------------------------------------------------------
 """
 
@@ -103,11 +103,10 @@ def rjust_jp(text, width):
     text_w = get_disp_width(text_str)
     return " " * max(0, width - text_w) + text_str
 
-def fmt_short_val(val, unit):
-    u = unit.replace("トークン", "").replace("秒", "").replace("回", "").replace("時間", "")
+def fmt_qty(val):
     if val == int(val):
-        return f"{int(val):,} {u}".strip()
-    return f"{val:,.1f} {u}".strip()
+        return f"{int(val):,}"
+    return f"{val:,.1f}"
 
 def main():
     t0 = time.time()
@@ -115,17 +114,19 @@ def main():
     token = get_access_token()
 
     now_utc = datetime.now(timezone.utc)
-    t_10m = now_utc - timedelta(minutes=10)
+    t_5m  = now_utc - timedelta(minutes=5)
+    t_30m = now_utc - timedelta(minutes=30)
     t_1h  = now_utc - timedelta(hours=1)
     t_24h = now_utc - timedelta(hours=24)
 
-    counts_10m = {
+    counts_5m = {
         "image_gen_count": 0.0, "text_input_tokens": 0.0, "gcs_write_ops": 0.0, "gcs_read_ops": 0.0,
         "spanner_node_hours": 0.0, "bigtable_node_hours": 0.0, "pubsub_publish_ops": 0.0, "secret_access_ops": 0.0,
         "cloud_run_requests": 0.0, "cloud_run_cpu_seconds": 0.0, "artifact_registry_ops": 0.0, "cloud_build_ops": 0.0,
     }
-    counts_1h  = dict(counts_10m)
-    counts_24h = dict(counts_10m)
+    counts_30m = dict(counts_5m)
+    counts_1h  = dict(counts_5m)
+    counts_24h = dict(counts_5m)
 
     if token:
         try:
@@ -158,8 +159,10 @@ def main():
                             counts_24h[key] += delta
                         if ts is None or ts >= t_1h:
                             counts_1h[key] += delta
-                        if ts is None or ts >= t_10m:
-                            counts_10m[key] += delta
+                        if ts is None or ts >= t_30m:
+                            counts_30m[key] += delta
+                        if ts is None or ts >= t_5m:
+                            counts_5m[key] += delta
 
                     if svc == "aiplatform.googleapis.com":
                         if "Predict" in method and "Endpoint" not in method:
@@ -212,7 +215,7 @@ def main():
     if real_img_count == 0 and os.path.exists("/tmp/170-serverless-cms"):
         real_img_count = 1.0
 
-    for c_dict in [counts_10m, counts_1h, counts_24h]:
+    for c_dict in [counts_5m, counts_30m, counts_1h, counts_24h]:
         c_dict["image_gen_count"] = max(c_dict["image_gen_count"], real_img_count)
         if c_dict["gcs_write_ops"] == 0:
             c_dict["gcs_write_ops"] = real_img_count * 4.0 + 1.0
@@ -242,26 +245,29 @@ def main():
         "cloud_build_ops":       {"label": "Cloud Build 実行",               "cat": "📦 インフラ・ログ",      "unit": "ビルド分",     "price_jpy": 0.465},
     }
 
-    print("==========================================================================================================================================================")
-    print("🏆 【本ハンズオン 3時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
-    print("==========================================================================================================================================================")
-    print(f"  {ljust_jp('【直近 10分間】 (即時原価)', 27)} │ {ljust_jp('【直近 1時間】 (セッション)', 27)} │ {ljust_jp('【直近 24時間】 (日計原価)', 27)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 32)}")
-    print("----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print("================================================================================================================================================------------------------------")
+    print("🏆 【本ハンズオン 4時間枠マルチ原価プロファイル】 (データアクセス監査ログ 1000件一括解析 / 閲覧料金: ￥0 完全無料)")
+    print("================================================================================================================================================------------------------------")
+    print(f"  {ljust_jp('【直近 5分間】 (超即時)', 22)} │ {ljust_jp('【直近 30分間】 (作業枠)', 22)} │ {ljust_jp('【直近 1時間】 (セッション)', 22)} │ {ljust_jp('【直近 24時間】 (日計)', 22)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
+    print("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
     profile_items = []
-    tot_10m, tot_1h, tot_24h = 0.0, 0.0, 0.0
+    tot_5m, tot_30m, tot_1h, tot_24h = 0.0, 0.0, 0.0, 0.0
 
     for mkey, meta in metric_catalog.items():
-        q_10m = counts_10m.get(mkey, 0.0)
+        q_5m  = counts_5m.get(mkey, 0.0)
+        q_30m = counts_30m.get(mkey, 0.0)
         q_1h  = counts_1h.get(mkey, 0.0)
         q_24h = counts_24h.get(mkey, 0.0)
         price = meta["price_jpy"]
 
-        c_10m = q_10m * price
+        c_5m  = q_5m  * price
+        c_30m = q_30m * price
         c_1h  = q_1h  * price
         c_24h = q_24h * price
 
-        tot_10m += c_10m
+        tot_5m  += c_5m
+        tot_30m += c_30m
         tot_1h  += c_1h
         tot_24h += c_24h
 
@@ -269,7 +275,8 @@ def main():
 
         profile_items.append({
             "sort_priority": sort_priority,
-            "c_10m": c_10m, "q_10m": q_10m,
+            "c_5m": c_5m,   "q_5m": q_5m,
+            "c_30m": c_30m, "q_30m": q_30m,
             "c_1h": c_1h,   "q_1h": q_1h,
             "c_24h": c_24h, "q_24h": q_24h,
             "cat": meta["cat"],
@@ -282,24 +289,25 @@ def main():
     has_separator = False
     for item in profile_items:
         if item["sort_priority"] == 3 and not has_separator:
-            print("  " + "┈" * 150)
+            print("  " + "┈" * 168)
             has_separator = True
 
-        u = item["unit"]
-        col_10m = f"￥{item['c_10m']:7.4f} ({fmt_short_val(item['q_10m'], u)})" if item['q_10m'] > 0 else "￥ 0.0000 (  0)"
-        col_1h  = f"￥{item['c_1h']:7.4f} ({fmt_short_val(item['q_1h'], u)})"  if item['q_1h'] > 0  else "￥ 0.0000 (  0)"
-        col_24h = f"￥{item['c_24h']:7.4f} ({fmt_short_val(item['q_24h'], u)})" if item['q_24h'] > 0 else "￥ 0.0000 (  0)"
+        col_5m  = f"￥{item['c_5m']:7.4f} ({fmt_qty(item['q_5m'])})"  if item['q_5m'] > 0  else "￥ 0.0000 (0)"
+        col_30m = f"￥{item['c_30m']:7.4f} ({fmt_qty(item['q_30m'])})" if item['q_30m'] > 0 else "￥ 0.0000 (0)"
+        col_1h  = f"￥{item['c_1h']:7.4f} ({fmt_qty(item['q_1h'])})"   if item['q_1h'] > 0  else "￥ 0.0000 (0)"
+        col_24h = f"￥{item['c_24h']:7.4f} ({fmt_qty(item['q_24h'])})"  if item['q_24h'] > 0 else "￥ 0.0000 (0)"
 
-        print(f"  {ljust_jp(col_10m, 27)} │ {ljust_jp(col_1h, 27)} │ {ljust_jp(col_24h, 27)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 32)}")
+        print(f"  {ljust_jp(col_5m, 22)} │ {ljust_jp(col_30m, 22)} │ {ljust_jp(col_1h, 22)} │ {ljust_jp(col_24h, 22)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['cat'], 22)} │ {ljust_jp(item['label'], 30)}")
 
-    print("----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
     print(" 💰 【時間枠別・合計確定原価サマリー】")
-    print(f"    🔹 ⚡ 【直近 10分間 (即時実測)】 : ￥{tot_10m:,.4f} / 回")
+    print(f"    🔹 ⚡ 【直近  5分間 (超即時)】   : ￥{tot_5m:,.4f} / 回")
+    print(f"    🔹 ⚡ 【直近 30分間 (作業枠)】   : ￥{tot_30m:,.4f} / 回")
     print(f"    🔹 ⏱️ 【直近  1時間 (セッション)】: ￥{tot_1h:,.4f} / 回")
     print(f"    🔹 📅 【直近 24時間 (日計累計)】  : ￥{tot_24h:,.4f} / 回")
-    print("==========================================================================================================================================================")
+    print("================================================================================================================================================------------------------------")
     print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 (データアクセスログ 1000件一括解析 / 監査ログAPI閲覧料金: ￥0 完全無料)")
-    print("==========================================================================================================================")
+    print("================================================================================================================================================------------------------------")
 
 if __name__ == "__main__":
     main()
