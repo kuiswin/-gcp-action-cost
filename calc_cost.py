@@ -507,7 +507,7 @@ def main():
         exceeded = max(0.0, q_24h - limit) if limit > 0 else q_24h
         billed_jpy = (exceeded * price) if limit > 0 else c_24h
 
-        is_deployed = mkey in ("spanner_node_hours", "bigtable_node_hours", "alloydb_cpu_hours")
+        is_deployed = mkey in ("spanner_node_hours", "bigtable_node_hours", "alloydb_cpu_hours", "gce_instance_hours")
         cat_disp = "⚡ デプロイ/常時稼働" if is_deployed else meta["cat"]
 
         result_items.append({
@@ -589,9 +589,9 @@ def main():
     def format_cell(cost, qty, unit_name="", is_deployed=False):
         if is_deployed:
             if qty == 0:
-                q_str = " 0.0時間"
+                q_str = " 0.0h"
             else:
-                q_str = f"{qty:4.1f}時間"
+                q_str = f"{qty:4.1f}h"
         else:
             if "枚" in unit_name:
                 q_str = f"{int(qty):>4d}枚"
@@ -600,12 +600,13 @@ def main():
             elif "トークン" in unit_name:
                 q_str = f"{qty:>4.1f}k"
             elif "秒" in unit_name:
-                q_str = f"{qty:>4.1f}秒"
-            elif "時間" in unit_name:
-                q_str = f"{qty:>4.1f}時間"
+                q_str = f"{qty:>4.1f}s"
+            elif "時間" in unit_name or "h" in unit_name:
+                q_str = f"{qty:>4.1f}h"
             else:
-                q_str = f"{fmt_qty(qty):>5}"
-        return f"￥{cost:9.4f} ({q_str})"
+                q_str = f"{int(qty):>5d}"
+        c_str = f"￥{cost:8.4f}"
+        return f"{c_str} ({q_str})"
 
     # 1. Print Deployed / Provisioned Section
     deployed_items = [item for item in result_items if item["is_deployed"]]
