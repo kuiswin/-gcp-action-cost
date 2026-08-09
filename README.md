@@ -36,7 +36,7 @@ GCPコンソール画面（請求画面）では丸められて **「￥0（ま�
 ## 🌟 主な機能・特徴
 
 1. **100% 動的なサービス＆単価バインド (`Zero Hardcoding`)**
-   プロジェクト内で有効化されているGCPサービス（Cloud Run, Cloud Storage, BigQuery, Gemini API / Vertex AI, Pub/Sub, Artifact Registry, Cloud Spanner, Bigtable, AlloyDB 等）を全自動検出。GCP Billing Catalog API から最新単価を取得し、Always Free（無料枠）上限との引き算明細を自動構築します。
+   プロジェクト内で有効化されているGCPサービス（Cloud Run, Cloud Storage, BigQuery, Gemini API / Vertex AI, Pub/Sub, Artifact Registry, Cloud Spanner, Bigtable, AlloyDB 等）を全自動検出。GCP公式単価テーブル（free_tier.json）から単価を自動マッピングし、Always Free（無料枠）上限との引き算明細を自動構築します。
 
 2. **ビフォーアフター差分計測モード (`--snap`)**
    「Webページ閲覧1回」「データ投稿1回」「API呼び出し1回」などの特定アクションの前後に実行することで、**その「1操作」単体で発生したリソース消費量と微小コスト（例: 1リクエストあたり約0.004円）をピンポイント試算**します。
