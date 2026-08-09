@@ -572,8 +572,8 @@ def main():
     print(f"    🔹 【直近 30分間】 : ￥{tot_30m:,.4f}")
     print(f"    🔹 【直近 01時間】 : ￥{tot_1h:,.4f}")
     print(f"    🔹 【直近 24時間/差分】 : ￥{tot_24h:,.4f}")
-    print("=" * line_w)
-    print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 | 結果出力: .data/action_cost_result.json")
+    raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
+    print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 | 生ログ保存先: {raw_log_file} | 試算結果: {out_file}")
     print("=" * line_w)
 
 if __name__ == "__main__":
