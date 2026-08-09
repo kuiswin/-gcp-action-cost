@@ -42,7 +42,7 @@ def get_gcloud_cmd():
 def get_project_id():
     pid = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
     if pid:
-        return pid
+        return pid, False
     cfg_path = os.path.expanduser("~/.config/gcloud/configurations/config_default")
     if os.path.exists(cfg_path):
         try:
@@ -51,16 +51,16 @@ def get_project_id():
                     if line.strip().startswith("project"):
                         parts = line.split("=")
                         if len(parts) > 1 and parts[1].strip():
-                            return parts[1].strip()
+                            return parts[1].strip(), False
         except Exception:
             pass
     try:
         res = subprocess.run([get_gcloud_cmd(), "config", "get-value", "project"], capture_output=True, text=True, timeout=3)
         if res.returncode == 0 and res.stdout.strip():
-            return res.stdout.strip()
+            return res.stdout.strip(), False
     except Exception:
         pass
-    return "demo-gcp-project"
+    return "demo-gcp-project", True
 
 def get_access_token():
     cache_path = "/tmp/_gcp_token.cache"
@@ -71,7 +71,7 @@ def get_access_token():
                 with open(cache_path, "r", encoding="utf-8") as f:
                     tok = f.read().strip()
                     if tok.startswith("ya29."):
-                        return tok
+                        return tok, None
         except Exception:
             pass
 
@@ -84,10 +84,11 @@ def get_access_token():
                     f.write(tok)
             except Exception:
                 pass
-            return tok
-    except Exception:
-        pass
-    return ""
+            return tok, None
+        err = res.stderr.strip() if res.stderr else "gcloud auth credentials not found"
+        return "", err
+    except Exception as e:
+        return "", str(e)
 
 def load_json_config(filename, default_val):
     path = os.path.join(SCRIPT_DIR, filename)
@@ -142,8 +143,21 @@ def main():
     args = parser.parse_args()
 
     t0 = time.time()
-    project_id = args.project or get_project_id()
-    token = get_access_token()
+    if args.project:
+        project_id = args.project
+        is_demo = False
+    else:
+        project_id, is_demo = get_project_id()
+
+    token, auth_err = get_access_token()
+
+    if not args.json:
+        if is_demo:
+            sys.stderr.write("⚠️ 【注意】 GCPプロジェクトIDが設定されていません (現在デモモード: demo-gcp-project)。\n")
+            sys.stderr.write("   実際のGCP環境をプロファイリングするには export GCP_PROJECT=\"your-project-id\" または --project オプションを指定してください。\n\n")
+        if not token:
+            sys.stderr.write("⚠️ 【注意】 GCP アクセストークンの取得に失敗しました (認証未完了)。\n")
+            sys.stderr.write("   Cloud Audit Logs の直接照会はスキップされます。実運用ログを試算するには `gcloud auth login` または Application Default Credentials をセットしてください。\n\n")
 
     # Load configuration tables dynamically from JSON files
     free_tier_cfg = load_json_config("free_tier.json", {}).get("free_tier", {})
