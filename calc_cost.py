@@ -21,11 +21,19 @@ import urllib.request
 import unicodedata
 from datetime import datetime, timedelta, timezone
 
-raw_dir = os.path.dirname(os.path.realpath(__file__))
-if raw_dir.startswith("/proc") or raw_dir.startswith("/dev"):
-    SCRIPT_DIR = os.getcwd()
-else:
-    SCRIPT_DIR = raw_dir
+def get_safe_script_dir():
+    try:
+        fpath = os.path.realpath(__file__)
+        if fpath.startswith("/proc") or fpath.startswith("/dev") or "/fd" in fpath:
+            return os.getcwd()
+        d = os.path.dirname(fpath)
+        if d.startswith("/proc") or d.startswith("/dev") or "/fd" in d:
+            return os.getcwd()
+        return d
+    except Exception:
+        return os.getcwd()
+
+SCRIPT_DIR = get_safe_script_dir()
 
 def get_gcloud_cmd():
     path = "/root/google-cloud-sdk/bin/gcloud"
@@ -301,6 +309,8 @@ def main():
 
     # Snapshot / Delta handling
     snap_dir = os.path.join(SCRIPT_DIR, ".data")
+    if snap_dir.startswith("/proc") or snap_dir.startswith("/dev") or "/fd" in snap_dir:
+        snap_dir = "/tmp/.data"
     try:
         os.makedirs(snap_dir, exist_ok=True)
     except Exception:
