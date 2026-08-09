@@ -362,7 +362,10 @@ def main():
                 ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
                 payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
                 svc = payload.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
-                method = payload.get("methodName") or entry.get("textPayload") or "event"
+                method = payload.get("methodName")
+                if not method:
+                    log_id = entry.get("logName", "").split("/")[-1]
+                    method = f"{log_id} (システム/アプリログ)"
 
                 if svc not in raw_service_counts:
                     raw_service_counts[svc] = {}
@@ -516,11 +519,17 @@ def main():
 
     if token and raw_log_count > 0:
         print(f"  ✅ ログ取得成功: 過去24時間の全領域から合計 {raw_log_count:,} 件の生ログを一括ダウンロード・解析しました。")
-        print("  [検出されたサービス ＆ APIメソッド内訳]")
-        for svc, methods in raw_service_counts.items():
-            print(f"   • {svc}")
-            for m, cnt in methods.items():
+        print("  [検出されたサービス ＆ API操作別・内訳]")
+        sorted_svcs = sorted(raw_service_counts.items(), key=lambda x: sum(x[1].values()), reverse=True)
+        for svc, methods in sorted_svcs:
+            svc_tot = sum(methods.values())
+            print(f"   • {svc} (合計 {svc_tot:,} 件)")
+            sorted_methods = sorted(methods.items(), key=lambda x: x[1], reverse=True)
+            for m, cnt in sorted_methods[:5]:
                 print(f"      └ {m}: {cnt:,} 回")
+            if len(sorted_methods) > 5:
+                sub_other = sum(c for _, c in sorted_methods[5:])
+                print(f"      └ (その他 {len(sorted_methods)-5} 種類の操作): 計 {sub_other:,} 回")
     elif token and raw_log_count == 0:
         print(f"  ℹ️ ログ検索完了: 過去24時間以内に検出されたログは 0 件です。")
         print("     ※ データアクセス監査ログ (IAM ➔ 監査ログ) が有効化されているかご確認ください。")
