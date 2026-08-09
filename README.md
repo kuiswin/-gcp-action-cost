@@ -9,10 +9,34 @@ GCPコンソール画面（請求画面）では丸められて **「￥0（ま�
 
 ---
 
+## ⚠️ 本ツールの核心：2つの重要前提（Must Read）
+
+### 1. 🔍 「データアクセス監査ログ (Data Access Audit Logs)」の有効化
+本ツールが API 呼び出し回数（Cloud Storage 読み書き、Pub/Sub メッセージ発行、Secret Manager 参照など）をリアルタイムに精密追跡するためには、GCPプロジェクト側で **データアクセス監査ログ（Data Access Audit Logs）** が有効化されている必要があります。
+
+> **💡 監査ログの有効化手順 (Google Cloud コンソール):**
+> 1. Google Cloud コンソールの **[IAM と管理] ➔ [監査ログ]** を開きます。
+> 2. `Google Cloud Storage` / `Cloud Pub/Sub` / `Secret Manager` 等を選択します。
+> 3. **「データの読み取り (Data Read)」** および **「データの書き込み (Data Write)」** にチェックを入れて保存します。
+> 
+> ※ 監査ログが無効化されている場合、一部の微小操作件数がログにカウントされず、プロファイリング結果に反映されない場合があります。
+
+---
+
+### 2. 🚨 サーバーレス型 vs 「常時起動型（マネージドDB等）」のコスト特性判定
+本ツールは、GCPプロジェクト内の全アクティブサービスを自動スキャンし、サービスごとの課金モデル（サーバーレス vs 常時起動型）を自動識別して警告出力します。
+
+| サービス種別 | 該当サービス例 | コスト特性 ＆ 本ツールのプロファイリング挙動 |
+| :--- | :--- | :--- |
+| **⚡ サーバーレス型** | Cloud Run, GCS, Pub/Sub, Vertex AI API | リクエストが無ければ自動で0台にスリープ（ゼロスケール）。アクセスが完全にゼロであれば **維持費はほぼ0円 (無料枠内)** と判定されます。 |
+| **🔥 常時起動型 (注意!)** | Cloud Spanner, Cloud Bigtable, AlloyDB | サーバーレスではないため、**リクエストが一切無くても「起動したまま放置」しているだけでノード数やvCPU数に応じた固定課金（毎時数〜数十円）が発生し続けます。** 本ツールはインスタンスの存在と時間単価を検知し、放置リスクの警告を出力します。 |
+
+---
+
 ## 🌟 主な機能・特徴
 
 1. **100% 動的なサービス＆単価バインド (`Zero Hardcoding`)**
-   プロジェクト内で有効化されているGCPサービス（Cloud Run, Cloud Storage, BigQuery, Gemini API / Vertex AI, Pub/Sub, Artifact Registry 等）を全自動検出。GCP Billing Catalog API から最新単価を取得し、Always Free（無料枠）上限との引き算明細を自動構築します。
+   プロジェクト内で有効化されているGCPサービス（Cloud Run, Cloud Storage, BigQuery, Gemini API / Vertex AI, Pub/Sub, Artifact Registry, Cloud Spanner, Bigtable, AlloyDB 等）を全自動検出。GCP Billing Catalog API から最新単価を取得し、Always Free（無料枠）上限との引き算明細を自動構築します。
 
 2. **ビフォーアフター差分計測モード (`--snap`)**
    「Webページ閲覧1回」「データ投稿1回」「API呼び出し1回」などの特定アクションの前後に実行することで、**その「1操作」単体で発生したリソース消費量と微小コスト（例: 1リクエストあたり約0.004円）をピンポイント試算**します。
@@ -49,7 +73,7 @@ python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/mai
 python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py)
 
 # 【Step 2】 計測したい操作（Webアクセス、API実行、投稿など）を実施
-# （※ Monitoring API へのデータ反映のため 2〜3分間 待ちます）
+# （※ Logging / Monitoring API へのデータ反映のため 1〜2分間 待ちます）
 
 # 【Step 3】 操作後（2回目実行）：直前スナップ以降の「1操作分の差分コスト」をピンポイント出力！
 python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py)
@@ -121,22 +145,16 @@ python3 calc_cost.py --project my-gcp-project-id
         "サービス": "Cloud Run CPU",
         "消費量": "21.02 vCPU秒",
         "単価": "0.003720 円/vCPU秒",
-        "掛け算結果": "0.078194 円"
+        "掛け算結果": "0.081914 円"
       },
       {
         "サービス": "Cloud Run Request",
         "消費量": "20 回",
         "単価": "0.000062 円/回",
         "掛け算結果": "0.001240 円"
-      },
-      {
-        "サービス": "Cloud Storage Read",
-        "消費量": "40 回",
-        "単価": "0.000062 円/回",
-        "掛け算結果": "0.002480 円"
       }
     ],
-    "小計": "0.081914 円",
+    "小計": "0.083154 円",
     "確定請求額": "￥0 (無料枠内)"
   }
 }
@@ -146,17 +164,16 @@ python3 calc_cost.py --project my-gcp-project-id
 
 ## 🔑 必須権限 (Prerequisites)
 
-本ツールで正確なGCP公式請求情報（Step 0）を取得するためには、実行環境（または認証されたユーザー/サービスアカウント）に以下の権限が必要です。
+本ツールで正確なGCP公式請求情報およびログの差分計測を行うためには、実行環境（または認証されたユーザー/サービスアカウント）に以下の権限が必要です。
 * `roles/billing.viewer` (課金閲覧者)
-
-※ 権限が不足している場合でもツール自体は動作し概算コストを算出しますが、GCP Billing APIからの確定請求ステータスは取得されず、標準エラー出力に警告が表示されます。
+* `roles/logging.viewer` (ログ閲覧者)
 
 ---
 
 ## ⚠️ 仕様と制限事項 (Limitations)
 
 * **単価の前提**: 本ツールは、各サービスの**標準単価（Standardエディション / 基準リージョン等）**をベースに概算コストを動的算出します。Cloud Spannerの `Enterprise Plus` など上位エディションや、特定リージョン専用の高額リソースを利用している場合、実際のGCPコンソール上の請求額とは乖離が生じる場合があります。
-* **リアルタイム性**: Cloud Monitoring API のメトリクス集計の仕様上、直近数分〜数十分の最新リソース消費データの反映にタイムラグが生じる場合があります。
+* **リアルタイム性**: Cloud Monitoring / Logging API のメトリクス集計の仕様上、直近数分〜数十分のリソース消費データの反映にタイムラグが生じる場合があります。
 * **ストレージ容量の換算**: Artifact Registry や Cloud Pub/Sub などのバイト単位メトリクスは、ツール内部で自動的に GB (ギガバイト) に換算して計算・表示されます。
 
 ---
