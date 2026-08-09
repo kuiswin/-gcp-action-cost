@@ -317,6 +317,20 @@ def main():
     counts_1h  = {k: 0.0 for k in pricing_map}
     counts_24h = {k: 0.0 for k in pricing_map}
 
+    # Directory for snapshots & raw log outputs
+    snap_dir = os.path.join(SCRIPT_DIR, ".data")
+    if snap_dir.startswith("/proc") or snap_dir.startswith("/dev") or "/fd" in snap_dir:
+        snap_dir = os.path.join(os.getcwd(), ".data")
+    try:
+        os.makedirs(snap_dir, exist_ok=True)
+    except Exception:
+        snap_dir = "/tmp/.data"
+        os.makedirs(snap_dir, exist_ok=True)
+
+    snap_file = os.path.join(snap_dir, "snapshot.json")
+    out_file = os.path.join(snap_dir, "action_cost_result.json")
+    raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
+
     raw_log_count = 0
     raw_service_counts = {}
 
@@ -358,7 +372,6 @@ def main():
                         break
 
             raw_log_count = len(all_entries)
-            raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
             try:
                 with open(raw_log_file, "w", encoding="utf-8") as f:
                     json.dump(all_entries, f, indent=2, ensure_ascii=False)
@@ -413,22 +426,10 @@ def main():
                 elif svc == "run.googleapis.com":
                     add_metric("cloud_run_requests", 1.0)
                     add_metric("cloud_run_cpu_seconds", 0.2)
-        except Exception:
+        except Exception as err:
             pass
 
     # Snapshot / Delta handling
-    snap_dir = os.path.join(SCRIPT_DIR, ".data")
-    if snap_dir.startswith("/proc") or snap_dir.startswith("/dev") or "/fd" in snap_dir:
-        snap_dir = "/tmp/.data"
-    try:
-        os.makedirs(snap_dir, exist_ok=True)
-    except Exception:
-        snap_dir = "/tmp/.data"
-        os.makedirs(snap_dir, exist_ok=True)
-
-    snap_file = os.path.join(snap_dir, "snapshot.json")
-    out_file = os.path.join(snap_dir, "action_cost_result.json")
-
     is_delta = False
     delta_counts = {}
 
