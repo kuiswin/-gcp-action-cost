@@ -379,54 +379,59 @@ def main():
                 pass
 
             for entry in all_entries:
-                ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
-                payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
-                svc = payload.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
-                method = payload.get("methodName")
-                if not method:
-                    log_id = entry.get("logName", "").split("/")[-1]
-                    method = f"{log_id} (システム/アプリログ)"
+                try:
+                    ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
+                    proto = entry.get("protoPayload") if isinstance(entry.get("protoPayload"), dict) else {}
+                    json_p = entry.get("jsonPayload") if isinstance(entry.get("jsonPayload"), dict) else {}
 
-                if svc not in raw_service_counts:
-                    raw_service_counts[svc] = {}
-                raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
+                    svc = proto.get("serviceName") or json_p.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
+                    method = proto.get("methodName") or json_p.get("methodName")
+                    if not method:
+                        log_id = entry.get("logName", "").split("/")[-1]
+                        method = f"{log_id} (システム/アプリログ)"
 
-                def add_metric(key, delta):
-                    if ts is None or ts >= t_24h:
-                        counts_24h[key] += delta
-                    if ts is None or ts >= t_1h:
-                        counts_1h[key] += delta
-                    if ts is None or ts >= t_30m:
-                        counts_30m[key] += delta
-                    if ts is None or ts >= t_5m:
-                        counts_5m[key] += delta
+                    if svc not in raw_service_counts:
+                        raw_service_counts[svc] = {}
+                    raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
 
-                if svc == "aiplatform.googleapis.com":
-                    if "Predict" in method and "Endpoint" not in method:
-                        add_metric("image_gen_count", 1.0)
-                    elif "GenerateContent" in method:
-                        add_metric("text_input_tokens", 0.5)
-                elif svc == "storage.googleapis.com":
-                    if method == "storage.objects.create":
-                        add_metric("gcs_write_ops", 1.0)
-                    elif method == "storage.objects.get":
-                        add_metric("gcs_read_ops", 1.0)
-                elif svc == "pubsub.googleapis.com":
-                    if "Publish" in method:
-                        add_metric("pubsub_publish_ops", 1.0)
-                elif svc == "secretmanager.googleapis.com":
-                    if "AccessSecretVersion" in method:
-                        add_metric("secret_access_ops", 1.0)
-                elif "alloydb" in svc or "AlloyDB" in method:
-                    add_metric("alloydb_cpu_hours", 4.0)
-                elif "spanner" in svc or "Spanner" in method:
-                    add_metric("spanner_node_hours", 1.0)
-                elif "bigtable" in svc or "Bigtable" in method:
-                    add_metric("bigtable_node_hours", 1.0)
-                elif svc == "run.googleapis.com":
-                    add_metric("cloud_run_requests", 1.0)
-                    add_metric("cloud_run_cpu_seconds", 0.2)
-        except Exception as err:
+                    def add_metric(key, delta):
+                        if ts is None or ts >= t_24h:
+                            counts_24h[key] += delta
+                        if ts is None or ts >= t_1h:
+                            counts_1h[key] += delta
+                        if ts is None or ts >= t_30m:
+                            counts_30m[key] += delta
+                        if ts is None or ts >= t_5m:
+                            counts_5m[key] += delta
+
+                    if svc == "aiplatform.googleapis.com":
+                        if "Predict" in method and "Endpoint" not in method:
+                            add_metric("image_gen_count", 1.0)
+                        elif "GenerateContent" in method:
+                            add_metric("text_input_tokens", 0.5)
+                    elif svc == "storage.googleapis.com":
+                        if method == "storage.objects.create":
+                            add_metric("gcs_write_ops", 1.0)
+                        elif method == "storage.objects.get":
+                            add_metric("gcs_read_ops", 1.0)
+                    elif svc == "pubsub.googleapis.com":
+                        if "Publish" in method:
+                            add_metric("pubsub_publish_ops", 1.0)
+                    elif svc == "secretmanager.googleapis.com":
+                        if "AccessSecretVersion" in method:
+                            add_metric("secret_access_ops", 1.0)
+                    elif "alloydb" in svc or "AlloyDB" in method:
+                        add_metric("alloydb_cpu_hours", 4.0)
+                    elif "spanner" in svc or "Spanner" in method:
+                        add_metric("spanner_node_hours", 1.0)
+                    elif "bigtable" in svc or "Bigtable" in method:
+                        add_metric("bigtable_node_hours", 1.0)
+                    elif svc == "run.googleapis.com":
+                        add_metric("cloud_run_requests", 1.0)
+                        add_metric("cloud_run_cpu_seconds", 0.2)
+                except Exception:
+                    continue
+        except Exception:
             pass
 
     # Snapshot / Delta handling
