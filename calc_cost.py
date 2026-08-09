@@ -406,33 +406,6 @@ def main():
         except Exception:
             pass
 
-    # Inspect current live instances via gcloud
-    if is_delta:
-        try:
-            sp_res = subprocess.run([get_gcloud_cmd(), "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-            if sp_res.returncode == 0 and sp_res.stdout.strip():
-                sp_instances = json.loads(sp_res.stdout)
-                nodes = sum(inst.get("config", {}).get("nodeCount", 1) for inst in sp_instances)
-                counts_24h["spanner_node_hours"] = max(counts_24h["spanner_node_hours"], float(nodes * 24))
-        except Exception:
-            pass
-
-        try:
-            bt_res = subprocess.run([get_gcloud_cmd(), "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-            if bt_res.returncode == 0 and bt_res.stdout.strip():
-                bt_instances = json.loads(bt_res.stdout)
-                counts_24h["bigtable_node_hours"] = max(counts_24h["bigtable_node_hours"], float(len(bt_instances) * 24))
-        except Exception:
-            pass
-
-        try:
-            al_res = subprocess.run([get_gcloud_cmd(), "alloydb", "clusters", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-            if al_res.returncode == 0 and al_res.stdout.strip():
-                al_clusters = json.loads(al_res.stdout)
-                counts_24h["alloydb_cpu_hours"] = max(counts_24h["alloydb_cpu_hours"], float(len(al_clusters) * 4 * 24))
-        except Exception:
-            pass
-
     # Snapshot / Delta handling
     snap_dir = os.path.join(SCRIPT_DIR, ".data")
     if snap_dir.startswith("/proc") or snap_dir.startswith("/dev") or "/fd" in snap_dir:
@@ -573,7 +546,7 @@ def main():
         col_1h  = format_cell(item['c_1h'],  item['q_1h'])
         col_24h = format_cell(item['c_24h'], item['q_24h'])
 
-        print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 22)} │ {ljust_jp(item['label'], 30)}")
+        print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 26)} │ {ljust_jp(item['label'], 35)}")
 
     print("-" * line_w)
     print(" 💰 【時間枠別・合計確定原価サマリー】")
