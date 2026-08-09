@@ -378,21 +378,42 @@ def main():
             except Exception:
                 pass
 
+            resource_trackers = {
+                "spanner_node_hours": {"create_kw": ["createinstance"], "delete_kw": ["deleteinstance"], "svc": "spanner.googleapis.com", "mult": 1.0},
+                "bigtable_node_hours": {"create_kw": ["createinstance"], "delete_kw": ["deleteinstance"], "svc": "bigtableadmin.googleapis.com", "mult": 1.0},
+                "alloydb_cpu_hours": {"create_kw": ["createcluster", "createinstance"], "delete_kw": ["deletecluster", "deleteinstance"], "svc": "alloydb.googleapis.com", "mult": 4.0}
+            }
+
+            resource_events = {k: {"creates": [], "deletes": []} for k in resource_trackers}
+
             for entry in all_entries:
                 try:
                     ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
                     proto = entry.get("protoPayload") if isinstance(entry.get("protoPayload"), dict) else {}
                     json_p = entry.get("jsonPayload") if isinstance(entry.get("jsonPayload"), dict) else {}
 
-                    svc = proto.get("serviceName") or json_p.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
-                    method = proto.get("methodName") or json_p.get("methodName")
+                    svc = (proto.get("serviceName") or json_p.get("serviceName") or entry.get("resource", {}).get("type", "unknown")).lower()
+                    method = (proto.get("methodName") or json_p.get("methodName") or "").lower()
+
                     if not method:
                         log_id = entry.get("logName", "").split("/")[-1]
-                        method = f"{log_id} (システム/アプリログ)"
+                        method_disp = f"{log_id} (システム/アプリログ)"
+                    else:
+                        method_disp = proto.get("methodName") or json_p.get("methodName")
 
-                    if svc not in raw_service_counts:
-                        raw_service_counts[svc] = {}
-                    raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
+                    raw_svc_name = proto.get("serviceName") or json_p.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
+                    if raw_svc_name not in raw_service_counts:
+                        raw_service_counts[raw_svc_name] = {}
+                    raw_service_counts[raw_svc_name][method_disp] = raw_service_counts[raw_svc_name].get(method_disp, 0) + 1
+
+                    for rkey, rcfg in resource_trackers.items():
+                        if rcfg["svc"] in svc:
+                            for ck in rcfg["create_kw"]:
+                                if ck in method:
+                                    resource_events[rkey]["creates"].append(ts)
+                            for dk in rcfg["delete_kw"]:
+                                if dk in method:
+                                    resource_events[rkey]["deletes"].append(ts)
 
                     def add_metric(key, delta):
                         if ts is None or ts >= t_24h:
@@ -405,32 +426,39 @@ def main():
                             counts_5m[key] += delta
 
                     if svc == "aiplatform.googleapis.com":
-                        if "Predict" in method and "Endpoint" not in method:
+                        if "predict" in method and "endpoint" not in method:
                             add_metric("image_gen_count", 1.0)
-                        elif "GenerateContent" in method:
+                        elif "generatecontent" in method:
                             add_metric("text_input_tokens", 0.5)
                     elif svc == "storage.googleapis.com":
-                        if method == "storage.objects.create":
+                        if "storage.objects.create" in method:
                             add_metric("gcs_write_ops", 1.0)
-                        elif method == "storage.objects.get":
+                        elif "storage.objects.get" in method:
                             add_metric("gcs_read_ops", 1.0)
                     elif svc == "pubsub.googleapis.com":
-                        if "Publish" in method:
+                        if "publish" in method:
                             add_metric("pubsub_publish_ops", 1.0)
                     elif svc == "secretmanager.googleapis.com":
-                        if "AccessSecretVersion" in method:
+                        if "accesssecretversion" in method:
                             add_metric("secret_access_ops", 1.0)
-                    elif "alloydb" in svc or "AlloyDB" in method:
-                        add_metric("alloydb_cpu_hours", 4.0)
-                    elif "spanner" in svc or "Spanner" in method:
-                        add_metric("spanner_node_hours", 1.0)
-                    elif "bigtable" in svc or "Bigtable" in method:
-                        add_metric("bigtable_node_hours", 1.0)
                     elif svc == "run.googleapis.com":
                         add_metric("cloud_run_requests", 1.0)
                         add_metric("cloud_run_cpu_seconds", 0.2)
                 except Exception:
                     continue
+
+            # Calculate precise Uptime Duration (Create -> Delete) for Deployed Resources
+            for rkey, rcfg in resource_trackers.items():
+                evs = resource_events[rkey]
+                creates = sorted([t for t in evs["creates"] if t])
+                deletes = sorted([t for t in evs["deletes"] if t])
+
+                if creates:
+                    start_t = creates[0]
+                    end_t = deletes[-1] if (deletes and deletes[-1] > start_t) else now_utc
+                    sec = max(0.0, (end_t - start_t).total_seconds())
+                    uptime_hours = (sec / 3600.0) * rcfg["mult"]
+                    counts_24h[rkey] = uptime_hours
         except Exception:
             pass
 
@@ -483,10 +511,14 @@ def main():
         exceeded = max(0.0, q_24h - limit) if limit > 0 else q_24h
         billed_jpy = (exceeded * price) if limit > 0 else c_24h
 
+        is_deployed = mkey in ("spanner_node_hours", "bigtable_node_hours", "alloydb_cpu_hours")
+        cat_disp = "⚡ デプロイ/常時稼働" if is_deployed else meta["cat"]
+
         result_items.append({
             "key": mkey,
             "label": meta["label"],
-            "category": meta["cat"],
+            "category": cat_disp,
+            "is_deployed": is_deployed,
             "unit": meta["unit"],
             "price_jpy": price,
             "q_5m": q_5m,   "c_5m": c_5m,
@@ -557,19 +589,36 @@ def main():
     print("=" * line_w)
     print(f"🏆 【Step 2: GCP Action Cost 精密原価プロファイル{mode_title}】 (プロジェクト: {project_id})")
     print("=" * line_w)
-    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
-    print("-" * line_w)
 
     def format_cell(cost, qty):
         q_str = f"{fmt_qty(qty):>5}"
         return f"￥{cost:9.4f} ({q_str})"
 
-    for item in result_items:
+    # 1. Print Deployed / Provisioned Section
+    deployed_items = [item for item in result_items if item["is_deployed"]]
+    serverless_items = [item for item in result_items if not item["is_deployed"]]
+
+    print("  ⚡ 【1. デプロイ・常時プロビジョニング系】 (作成〜削除までの実稼働時間をログから高精度計測)")
+    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
+    print("-" * line_w)
+    for item in deployed_items:
         col_5m  = format_cell(item['c_5m'],  item['q_5m'])
         col_30m = format_cell(item['c_30m'], item['q_30m'])
         col_1h  = format_cell(item['c_1h'],  item['q_1h'])
         col_24h = format_cell(item['c_24h'], item['q_24h'])
+        print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 26)} │ {ljust_jp(item['label'], 35)}")
+    print("-" * line_w)
+    print()
 
+    # 2. Print Serverless Section
+    print("  ☁️ 【2. サーバーレス・従量課金系】 (リクエスト・データ転送・AI生成数による即時従量計算)")
+    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
+    print("-" * line_w)
+    for item in serverless_items:
+        col_5m  = format_cell(item['c_5m'],  item['q_5m'])
+        col_30m = format_cell(item['c_30m'], item['q_30m'])
+        col_1h  = format_cell(item['c_1h'],  item['q_1h'])
+        col_24h = format_cell(item['c_24h'], item['q_24h'])
         print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 26)} │ {ljust_jp(item['label'], 35)}")
 
     print("-" * line_w)
