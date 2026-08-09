@@ -21,7 +21,11 @@ import urllib.request
 import unicodedata
 from datetime import datetime, timedelta, timezone
 
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+raw_dir = os.path.dirname(os.path.realpath(__file__))
+if raw_dir.startswith("/proc") or raw_dir.startswith("/dev"):
+    SCRIPT_DIR = os.getcwd()
+else:
+    SCRIPT_DIR = raw_dir
 
 def get_gcloud_cmd():
     path = "/root/google-cloud-sdk/bin/gcloud"
@@ -85,6 +89,14 @@ def load_json_config(filename, default_val):
                 return json.load(f)
         except Exception:
             pass
+    # Remote fallback for python3 <(curl -s ...) pipe executions
+    url = f"https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/{filename}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        pass
     return default_val
 
 def parse_iso_time(ts_str):
@@ -289,7 +301,12 @@ def main():
 
     # Snapshot / Delta handling
     snap_dir = os.path.join(SCRIPT_DIR, ".data")
-    os.makedirs(snap_dir, exist_ok=True)
+    try:
+        os.makedirs(snap_dir, exist_ok=True)
+    except Exception:
+        snap_dir = "/tmp/.data"
+        os.makedirs(snap_dir, exist_ok=True)
+
     snap_file = os.path.join(snap_dir, "snapshot.json")
     out_file = os.path.join(snap_dir, "action_cost_result.json")
 
