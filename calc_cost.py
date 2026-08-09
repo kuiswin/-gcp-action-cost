@@ -374,7 +374,7 @@ def main():
             raw_log_count = len(all_entries)
             try:
                 with open(raw_log_file, "w", encoding="utf-8") as f:
-                    json.dump(all_entries, f, indent=2, ensure_ascii=False)
+                    json.dump(all_entries, f, default=str)
             except Exception:
                 pass
 
