@@ -353,7 +353,7 @@ def main():
                     headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
                 )
 
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=30) as resp:
                     raw_bytes = resp.read()
                     if resp.info().get("Content-Encoding") == "gzip":
                         raw_bytes = gzip.decompress(raw_bytes)
@@ -366,7 +366,18 @@ def main():
 
                     if not page_token or page_count >= 100:
                         break
+        except Exception:
+            pass
 
+        # Fallback to local raw log cache if API request failed or returned empty
+        if not all_entries and os.path.exists(raw_log_file):
+            try:
+                with open(raw_log_file, "r", encoding="utf-8") as f:
+                    all_entries = json.load(f)
+            except Exception:
+                pass
+
+        if all_entries:
             raw_log_count = len(all_entries)
             try:
                 with open(raw_log_file, "w", encoding="utf-8") as f:
