@@ -358,6 +358,13 @@ def main():
                         break
 
             raw_log_count = len(all_entries)
+            raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
+            try:
+                with open(raw_log_file, "w", encoding="utf-8") as f:
+                    json.dump(all_entries, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
+
             for entry in all_entries:
                 ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
                 payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
@@ -518,7 +525,9 @@ def main():
     print("=" * line_w)
 
     if token and raw_log_count > 0:
+        raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
         print(f"  ✅ ログ取得成功: 過去24時間の全領域から合計 {raw_log_count:,} 件の生ログを一括ダウンロード・解析しました。")
+        print(f"  📂 生ログ保存先: {raw_log_file} (全 {raw_log_count:,} 件の元データJSONを保存済み)")
         print("  [検出されたサービス ＆ API操作別・内訳]")
         sorted_svcs = sorted(raw_service_counts.items(), key=lambda x: sum(x[1].values()), reverse=True)
         for svc, methods in sorted_svcs:
