@@ -322,7 +322,7 @@ def main():
 
     if token:
         try:
-            filter_str = f'logName=("projects/{project_id}/logs/cloudaudit.googleapis.com/data_access" OR "projects/{project_id}/logs/cloudaudit.googleapis.com/activity")'
+            filter_str = f'timestamp >= "{t_24h.strftime("%Y-%m-%dT%H:%M:%SZ")}"'
             req_data = json.dumps({
                 "resourceNames": [f"projects/{project_id}"],
                 "filter": filter_str,
@@ -335,7 +335,7 @@ def main():
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
             )
 
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 raw_bytes = resp.read()
                 if resp.info().get("Content-Encoding") == "gzip":
                     raw_bytes = gzip.decompress(raw_bytes)
@@ -345,9 +345,9 @@ def main():
                 raw_log_count = len(entries)
                 for entry in entries:
                     ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
-                    payload = entry.get("protoPayload", {})
-                    svc = payload.get("serviceName", "unknown")
-                    method = payload.get("methodName", "unknown")
+                    payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
+                    svc = payload.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
+                    method = payload.get("methodName") or entry.get("textPayload") or "event"
 
                     if svc not in raw_service_counts:
                         raw_service_counts[svc] = {}
