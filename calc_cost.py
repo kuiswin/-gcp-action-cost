@@ -615,7 +615,7 @@ def main():
     serverless_items = [item for item in result_items if not item["is_deployed"]]
 
     print("  ⚡ 【1. デプロイ・常時プロビジョニング系】 (作成〜削除までの実稼働時間をログから高精度計測)")
-    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
+    print(f"  {ljust_jp('【直近 5分】', 20)} │ {ljust_jp('【直近 30分】', 20)} │ {ljust_jp('【直近 1時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
     print("-" * line_w)
     for item in deployed_items:
         # Show actual instance uptime hours for AlloyDB (dividing by vCPU multiplier 4.0 if alloydb)
@@ -634,7 +634,7 @@ def main():
 
     # 2. Print Serverless Section
     print("  ☁️ 【2. サーバーレス・従量課金系】 (リクエスト・データ転送・AI生成数による即時従量計算)")
-    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
+    print(f"  {ljust_jp('【直近 5分】', 20)} │ {ljust_jp('【直近 30分】', 20)} │ {ljust_jp('【直近 1時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
     print("-" * line_w)
     for item in serverless_items:
         col_5m  = format_cell(item['c_5m'],  item['q_5m'],  item['unit'], is_deployed=False)
@@ -645,9 +645,9 @@ def main():
 
     print("-" * line_w)
     print(" 💰 【時間枠別・合計確定原価サマリー】")
-    print(f"    🔹 【直近 05分間】 : ￥{tot_5m:,.4f}")
-    print(f"    🔹 【直近 30分間】 : ￥{tot_30m:,.4f}")
-    print(f"    🔹 【直近 01時間】 : ￥{tot_1h:,.4f}")
+    print(f"    🔹 【直近 5分】       : ￥{tot_5m:,.4f}")
+    print(f"    🔹 【直近 30分】      : ￥{tot_30m:,.4f}")
+    print(f"    🔹 【直近 1時間】     : ￥{tot_1h:,.4f}")
     print(f"    🔹 【直近 24時間/差分】 : ￥{tot_24h:,.4f}")
     raw_log_file = os.path.join(snap_dir, "raw_gcp_audit_logs.json")
     print(f"⚡ 処理完了時間: {time.time() - t0:.3f}秒 | 生ログ保存先: {raw_log_file} | 試算結果: {out_file}")
