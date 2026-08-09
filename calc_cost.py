@@ -323,98 +323,115 @@ def main():
     if token:
         try:
             filter_str = f'timestamp >= "{t_24h.strftime("%Y-%m-%dT%H:%M:%SZ")}"'
-            req_data = json.dumps({
-                "resourceNames": [f"projects/{project_id}"],
-                "filter": filter_str,
-                "pageSize": 1000,
-            }).encode("utf-8")
+            page_token = None
+            page_count = 0
+            all_entries = []
 
-            req = urllib.request.Request(
-                "https://logging.googleapis.com/v2/entries:list",
-                data=req_data,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
-            )
+            while True:
+                req_payload = {
+                    "resourceNames": [f"projects/{project_id}"],
+                    "filter": filter_str,
+                    "pageSize": 1000,
+                }
+                if page_token:
+                    req_payload["pageToken"] = page_token
 
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                raw_bytes = resp.read()
-                if resp.info().get("Content-Encoding") == "gzip":
-                    raw_bytes = gzip.decompress(raw_bytes)
-                
-                data = json.loads(raw_bytes.decode("utf-8"))
-                entries = data.get("entries", [])
-                raw_log_count = len(entries)
-                for entry in entries:
-                    ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
-                    payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
-                    svc = payload.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
-                    method = payload.get("methodName") or entry.get("textPayload") or "event"
+                req_data = json.dumps(req_payload).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://logging.googleapis.com/v2/entries:list",
+                    data=req_data,
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
+                )
 
-                    if svc not in raw_service_counts:
-                        raw_service_counts[svc] = {}
-                    raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    raw_bytes = resp.read()
+                    if resp.info().get("Content-Encoding") == "gzip":
+                        raw_bytes = gzip.decompress(raw_bytes)
+                    
+                    data = json.loads(raw_bytes.decode("utf-8"))
+                    entries = data.get("entries", [])
+                    all_entries.extend(entries)
+                    page_token = data.get("nextPageToken")
+                    page_count += 1
 
-                    def add_metric(key, delta):
-                        if ts is None or ts >= t_24h:
-                            counts_24h[key] += delta
-                        if ts is None or ts >= t_1h:
-                            counts_1h[key] += delta
-                        if ts is None or ts >= t_30m:
-                            counts_30m[key] += delta
-                        if ts is None or ts >= t_5m:
-                            counts_5m[key] += delta
+                    if not page_token or page_count >= 100:
+                        break
 
-                    if svc == "aiplatform.googleapis.com":
-                        if "Predict" in method and "Endpoint" not in method:
-                            add_metric("image_gen_count", 1.0)
-                        elif "GenerateContent" in method:
-                            add_metric("text_input_tokens", 0.5)
-                    elif svc == "storage.googleapis.com":
-                        if method == "storage.objects.create":
-                            add_metric("gcs_write_ops", 1.0)
-                        elif method == "storage.objects.get":
-                            add_metric("gcs_read_ops", 1.0)
-                    elif svc == "pubsub.googleapis.com":
-                        if "Publish" in method:
-                            add_metric("pubsub_publish_ops", 1.0)
-                    elif svc == "secretmanager.googleapis.com":
-                        if "AccessSecretVersion" in method:
-                            add_metric("secret_access_ops", 1.0)
-                    elif "alloydb" in svc or "AlloyDB" in method:
-                        add_metric("alloydb_cpu_hours", 4.0)
-                    elif "spanner" in svc or "Spanner" in method:
-                        add_metric("spanner_node_hours", 1.0)
-                    elif "bigtable" in svc or "Bigtable" in method:
-                        add_metric("bigtable_node_hours", 1.0)
-                    elif svc == "run.googleapis.com":
-                        add_metric("cloud_run_requests", 1.0)
-                        add_metric("cloud_run_cpu_seconds", 0.2)
+            raw_log_count = len(all_entries)
+            for entry in all_entries:
+                ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
+                payload = entry.get("protoPayload") or entry.get("jsonPayload") or {}
+                svc = payload.get("serviceName") or entry.get("resource", {}).get("type", "unknown")
+                method = payload.get("methodName") or entry.get("textPayload") or "event"
+
+                if svc not in raw_service_counts:
+                    raw_service_counts[svc] = {}
+                raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
+
+                def add_metric(key, delta):
+                    if ts is None or ts >= t_24h:
+                        counts_24h[key] += delta
+                    if ts is None or ts >= t_1h:
+                        counts_1h[key] += delta
+                    if ts is None or ts >= t_30m:
+                        counts_30m[key] += delta
+                    if ts is None or ts >= t_5m:
+                        counts_5m[key] += delta
+
+                if svc == "aiplatform.googleapis.com":
+                    if "Predict" in method and "Endpoint" not in method:
+                        add_metric("image_gen_count", 1.0)
+                    elif "GenerateContent" in method:
+                        add_metric("text_input_tokens", 0.5)
+                elif svc == "storage.googleapis.com":
+                    if method == "storage.objects.create":
+                        add_metric("gcs_write_ops", 1.0)
+                    elif method == "storage.objects.get":
+                        add_metric("gcs_read_ops", 1.0)
+                elif svc == "pubsub.googleapis.com":
+                    if "Publish" in method:
+                        add_metric("pubsub_publish_ops", 1.0)
+                elif svc == "secretmanager.googleapis.com":
+                    if "AccessSecretVersion" in method:
+                        add_metric("secret_access_ops", 1.0)
+                elif "alloydb" in svc or "AlloyDB" in method:
+                    add_metric("alloydb_cpu_hours", 4.0)
+                elif "spanner" in svc or "Spanner" in method:
+                    add_metric("spanner_node_hours", 1.0)
+                elif "bigtable" in svc or "Bigtable" in method:
+                    add_metric("bigtable_node_hours", 1.0)
+                elif svc == "run.googleapis.com":
+                    add_metric("cloud_run_requests", 1.0)
+                    add_metric("cloud_run_cpu_seconds", 0.2)
         except Exception:
             pass
 
-    # Real instance detection via gcloud (no fake directory fallbacks!)
-    try:
-        bt_res = subprocess.run([get_gcloud_cmd(), "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-        if bt_res.returncode == 0 and "main-instance" in bt_res.stdout:
-            for c_dict in [counts_5m, counts_30m, counts_1h, counts_24h]:
-                c_dict["bigtable_node_hours"] = 1.0
-    except Exception:
-        pass
+    # Inspect current live instances via gcloud
+    if is_delta:
+        try:
+            sp_res = subprocess.run([get_gcloud_cmd(), "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
+            if sp_res.returncode == 0 and sp_res.stdout.strip():
+                sp_instances = json.loads(sp_res.stdout)
+                nodes = sum(inst.get("config", {}).get("nodeCount", 1) for inst in sp_instances)
+                counts_24h["spanner_node_hours"] = max(counts_24h["spanner_node_hours"], float(nodes * 24))
+        except Exception:
+            pass
 
-    try:
-        sp_res = subprocess.run([get_gcloud_cmd(), "spanner", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-        if sp_res.returncode == 0 and "main-instance" in sp_res.stdout:
-            for c_dict in [counts_5m, counts_30m, counts_1h, counts_24h]:
-                c_dict["spanner_node_hours"] = 1.0
-    except Exception:
-        pass
+        try:
+            bt_res = subprocess.run([get_gcloud_cmd(), "bigtable", "instances", "list", f"--project={project_id}", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
+            if bt_res.returncode == 0 and bt_res.stdout.strip():
+                bt_instances = json.loads(bt_res.stdout)
+                counts_24h["bigtable_node_hours"] = max(counts_24h["bigtable_node_hours"], float(len(bt_instances) * 24))
+        except Exception:
+            pass
 
-    try:
-        al_res = subprocess.run([get_gcloud_cmd(), "alloydb", "instances", "list", "--cluster=-", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
-        if al_res.returncode == 0 and ("main-instance" in al_res.stdout or "READY" in al_res.stdout):
-            for c_dict in [counts_5m, counts_30m, counts_1h, counts_24h]:
-                c_dict["alloydb_cpu_hours"] = 4.0
-    except Exception:
-        pass
+        try:
+            al_res = subprocess.run([get_gcloud_cmd(), "alloydb", "clusters", "list", f"--project={project_id}", "--region=asia-northeast1", "--format=json", "--quiet"], capture_output=True, text=True, timeout=5)
+            if al_res.returncode == 0 and al_res.stdout.strip():
+                al_clusters = json.loads(al_res.stdout)
+                counts_24h["alloydb_cpu_hours"] = max(counts_24h["alloydb_cpu_hours"], float(len(al_clusters) * 4 * 24))
+        except Exception:
+            pass
 
     # Snapshot / Delta handling
     snap_dir = os.path.join(SCRIPT_DIR, ".data")
@@ -517,7 +534,7 @@ def main():
         return
 
     # Print Terminal Table
-    line_w = 158
+    line_w = 168
     mode_title = " (差分計測モード)" if is_delta else ""
 
     print("=" * line_w)
@@ -525,14 +542,14 @@ def main():
     print("=" * line_w)
 
     if token and raw_log_count > 0:
-        print(f"  ✅ ログ取得成功: 合計 {raw_log_count} 件のデータアクセス / アクティビティ監査ログを検出しました。")
+        print(f"  ✅ ログ取得成功: 過去24時間の全領域から合計 {raw_log_count:,} 件の生ログを一括ダウンロード・解析しました。")
         print("  [検出されたサービス ＆ APIメソッド内訳]")
         for svc, methods in raw_service_counts.items():
             print(f"   • {svc}")
             for m, cnt in methods.items():
-                print(f"      └ {m}: {cnt} 回")
+                print(f"      └ {m}: {cnt:,} 回")
     elif token and raw_log_count == 0:
-        print(f"  ℹ️ ログ検索完了: 過去24時間以内に検出された監査ログは 0 件です。")
+        print(f"  ℹ️ ログ検索完了: 過去24時間以内に検出されたログは 0 件です。")
         print("     ※ データアクセス監査ログ (IAM ➔ 監査ログ) が有効化されているかご確認ください。")
     else:
         print(f"  ⚠️ 認証未完了: GCP アクセストークン未取得のためログ検索をスキップしました (デモモード)。")
@@ -543,7 +560,7 @@ def main():
     print("=" * line_w)
     print(f"🏆 【Step 2: GCP Action Cost 精密原価プロファイル{mode_title}】 (プロジェクト: {project_id})")
     print("=" * line_w)
-    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
+    print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
     print("-" * line_w)
 
     def format_cell(cost, qty):
