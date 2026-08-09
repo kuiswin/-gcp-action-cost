@@ -196,11 +196,7 @@ def get_disp_width(text):
         if ord(c) in (0xfe0f, 0xfe0e):
             i += 1
             continue
-        if ord(c) >= 0x1f300:
-            w += 2
-        elif ord(c) in (0x2601, 0x26a1):
-            w += 1
-        elif unicodedata.east_asian_width(c) in ('F', 'W'):
+        if ord(c) in (0x2601, 0x26a1) or ord(c) >= 0x1f300 or unicodedata.east_asian_width(c) in ('F', 'W'):
             w += 2
         else:
             w += 1
