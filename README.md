@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Supported-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/)
 
-GCPコンソール画面（請求画面）では丸められて **「￥0（または $0.00）」** と表示されてしまう1円未満の微小コストを、**GCP Service Usage API / Monitoring API (生消費データ)** と **Billing Catalog API (公式リアルタイム単価)** を組み合わせてリアルタイム精密算出するオープンソースCLIプロファイラーです。
+GCPコンソール画面（請求画面）では丸められて **「￥0（または $0.00）」** と表示されてしまう1円未満の微小コストを、**GCP Service Usage API / Monitoring API / Cloud Logging API (生消費データ)** と **GCP公式単価テーブル (free_tier.json)** を組み合わせてリアルタイム精密算出するオープンソースCLIプロファイラーです。
 
 任意のGCPプロジェクトでワンコマンド実行するだけで、有効化中のサービス・適用単価・無料枠（Always Free）消化率を全自動で動的にバインドし、美しい JSON 形式で出力します。
 
