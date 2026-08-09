@@ -225,7 +225,7 @@ def main():
 
     if token:
         try:
-            filter_str = f'logName="projects/{project_id}/logs/cloudaudit.googleapis.com/data_access"'
+            filter_str = f'logName=("projects/{project_id}/logs/cloudaudit.googleapis.com/data_access" OR "projects/{project_id}/logs/cloudaudit.googleapis.com/activity")'
             req_data = json.dumps({
                 "resourceNames": [f"projects/{project_id}"],
                 "filter": filter_str,
@@ -276,6 +276,12 @@ def main():
                     elif svc == "secretmanager.googleapis.com":
                         if "AccessSecretVersion" in method:
                             add_metric("secret_access_ops", 1.0)
+                    elif "alloydb" in svc or "AlloyDB" in method:
+                        add_metric("alloydb_cpu_hours", 4.0)
+                    elif "spanner" in svc or "Spanner" in method:
+                        add_metric("spanner_node_hours", 1.0)
+                    elif "bigtable" in svc or "Bigtable" in method:
+                        add_metric("bigtable_node_hours", 1.0)
                     elif svc == "run.googleapis.com":
                         add_metric("cloud_run_requests", 1.0)
                         add_metric("cloud_run_cpu_seconds", 0.2)
