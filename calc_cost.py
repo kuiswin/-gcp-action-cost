@@ -40,26 +40,67 @@ def get_gcloud_cmd():
     return path if os.path.exists(path) else "gcloud"
 
 def get_project_id():
-    pid = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # 1. Environment variables
+    pid = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("CLOUDSDK_CORE_PROJECT")
     if pid:
         return pid, False
-    cfg_path = os.path.expanduser("~/.config/gcloud/configurations/config_default")
-    if os.path.exists(cfg_path):
+
+    # 2. GCP Compute / Cloud Run Metadata Server
+    try:
+        req = urllib.request.Request("http://169.254.169.254/computeMetadata/v1/project/project-id", headers={"Metadata-Flavor": "Google"})
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            meta_pid = resp.read().decode("utf-8").strip()
+            if meta_pid:
+                return meta_pid, False
+    except Exception:
+        pass
+
+    # 3. gcloud configuration files (~/.config/gcloud/configurations/*)
+    cfg_dir = os.path.expanduser("~/.config/gcloud/configurations")
+    if os.path.exists(cfg_dir):
         try:
-            with open(cfg_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip().startswith("project"):
-                        parts = line.split("=")
-                        if len(parts) > 1 and parts[1].strip():
-                            return parts[1].strip(), False
+            for fname in os.listdir(cfg_dir):
+                fpath = os.path.join(cfg_dir, fname)
+                if os.path.isfile(fpath):
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.strip().startswith("project"):
+                                parts = line.split("=")
+                                if len(parts) > 1 and parts[1].strip():
+                                    return parts[1].strip(), False
         except Exception:
             pass
+
+    # 4. Application Default Credentials (ADC) JSON file
+    adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
+    if os.path.exists(adc_path):
+        try:
+            with open(adc_path, "r", encoding="utf-8") as f:
+                adc_data = json.load(f)
+                adc_pid = adc_data.get("quota_project_id") or adc_data.get("project_id")
+                if adc_pid:
+                    return adc_pid, False
+        except Exception:
+            pass
+
+    # 5. gcloud config get-value project
     try:
         res = subprocess.run([get_gcloud_cmd(), "config", "get-value", "project"], capture_output=True, text=True, timeout=3)
-        if res.returncode == 0 and res.stdout.strip():
+        if res.returncode == 0 and res.stdout.strip() and "(unset)" not in res.stdout:
             return res.stdout.strip(), False
     except Exception:
         pass
+
+    # 6. Query accessible projects via gcloud projects list
+    try:
+        res = subprocess.run([get_gcloud_cmd(), "projects", "list", "--limit=1", "--format=value(projectId)", "--quiet"], capture_output=True, text=True, timeout=5)
+        if res.returncode == 0 and res.stdout.strip():
+            first_pid = res.stdout.strip().splitlines()[0]
+            if first_pid:
+                return first_pid, False
+    except Exception:
+        pass
+
     return "demo-gcp-project", True
 
 def get_access_token():
