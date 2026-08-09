@@ -111,13 +111,14 @@ def get_access_token():
             if time.time() - mtime < 1800:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     tok = f.read().strip()
-                    if tok.startswith("ya29."):
+                    if tok.startswith("ya29.") or tok.startswith("eyJ"):
                         return tok, None
         except Exception:
             pass
 
+    # Method 1: gcloud auth print-access-token (with 15s timeout & DEVNULL stdin)
     try:
-        res = subprocess.run([get_gcloud_cmd(), "auth", "print-access-token"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run([get_gcloud_cmd(), "auth", "print-access-token"], capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=15)
         if res.returncode == 0 and res.stdout.strip():
             tok = res.stdout.strip()
             try:
@@ -126,10 +127,38 @@ def get_access_token():
             except Exception:
                 pass
             return tok, None
-        err = res.stderr.strip() if res.stderr else "gcloud auth credentials not found"
-        return "", err
-    except Exception as e:
-        return "", str(e)
+    except Exception:
+        pass
+
+    # Method 2: gcloud auth application-default print-access-token
+    try:
+        res = subprocess.run([get_gcloud_cmd(), "auth", "application-default", "print-access-token"], capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=15)
+        if res.returncode == 0 and res.stdout.strip():
+            tok = res.stdout.strip()
+            try:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    f.write(tok)
+            except Exception:
+                pass
+            return tok, None
+    except Exception:
+        pass
+
+    # Method 3: gcloud config config-helper
+    try:
+        res = subprocess.run([get_gcloud_cmd(), "config", "config-helper", "--format=value(credential.access_token)"], capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=15)
+        if res.returncode == 0 and res.stdout.strip():
+            tok = res.stdout.strip()
+            try:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    f.write(tok)
+            except Exception:
+                pass
+            return tok, None
+    except Exception:
+        pass
+
+    return "", "gcloud credentials not active"
 
 def load_json_config(filename, default_val):
     path = os.path.join(SCRIPT_DIR, filename)
