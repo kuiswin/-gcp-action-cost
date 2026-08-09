@@ -247,6 +247,9 @@ def main():
     counts_1h  = {k: 0.0 for k in pricing_map}
     counts_24h = {k: 0.0 for k in pricing_map}
 
+    raw_log_count = 0
+    raw_service_counts = {}
+
     if token:
         try:
             filter_str = f'logName=("projects/{project_id}/logs/cloudaudit.googleapis.com/data_access" OR "projects/{project_id}/logs/cloudaudit.googleapis.com/activity")'
@@ -268,11 +271,17 @@ def main():
                     raw_bytes = gzip.decompress(raw_bytes)
                 
                 data = json.loads(raw_bytes.decode("utf-8"))
-                for entry in data.get("entries", []):
+                entries = data.get("entries", [])
+                raw_log_count = len(entries)
+                for entry in entries:
                     ts = parse_iso_time(entry.get("timestamp") or entry.get("receiveTimestamp"))
                     payload = entry.get("protoPayload", {})
-                    svc = payload.get("serviceName", "")
-                    method = payload.get("methodName", "")
+                    svc = payload.get("serviceName", "unknown")
+                    method = payload.get("methodName", "unknown")
+
+                    if svc not in raw_service_counts:
+                        raw_service_counts[svc] = {}
+                    raw_service_counts[svc][method] = raw_service_counts[svc].get(method, 0) + 1
 
                     def add_metric(key, delta):
                         if ts is None or ts >= t_24h:
@@ -440,8 +449,29 @@ def main():
     # Print Terminal Table
     line_w = 158
     mode_title = " (差分計測モード)" if is_delta else ""
+
     print("=" * line_w)
-    print(f"🏆 【GCP Action Cost Profiler{mode_title}】 (プロジェクト: {project_id})")
+    print(f"📜 【Step 1: GCP 生監査ログ収集 ＆ サマリー】 (過去24時間 / プロジェクト: {project_id})")
+    print("=" * line_w)
+
+    if token and raw_log_count > 0:
+        print(f"  ✅ ログ取得成功: 合計 {raw_log_count} 件のデータアクセス / アクティビティ監査ログを検出しました。")
+        print("  [検出されたサービス ＆ APIメソッド内訳]")
+        for svc, methods in raw_service_counts.items():
+            print(f"   • {svc}")
+            for m, cnt in methods.items():
+                print(f"      └ {m}: {cnt} 回")
+    elif token and raw_log_count == 0:
+        print(f"  ℹ️ ログ検索完了: 過去24時間以内に検出された監査ログは 0 件です。")
+        print("     ※ データアクセス監査ログ (IAM ➔ 監査ログ) が有効化されているかご確認ください。")
+    else:
+        print(f"  ⚠️ 認証未完了: GCP アクセストークン未取得のためログ検索をスキップしました (デモモード)。")
+        print("     ※ 実際のログを追跡するには `gcloud auth login` または `export GCP_PROJECT=...` を指定してください。")
+    print("-" * line_w)
+    print()
+
+    print("=" * line_w)
+    print(f"🏆 【Step 2: GCP Action Cost 精密原価プロファイル{mode_title}】 (プロジェクト: {project_id})")
     print("=" * line_w)
     print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 22)} │ {ljust_jp('サービス・リソース名', 30)}")
     print("-" * line_w)
