@@ -566,13 +566,15 @@ def main():
         sorted_svcs = sorted(raw_service_counts.items(), key=lambda x: sum(x[1].values()), reverse=True)
         for svc, methods in sorted_svcs:
             svc_tot = sum(methods.values())
-            print(f"   • {svc} (合計 {svc_tot:,} 件)")
+            svc_clean = urllib.parse.unquote(svc)
+            print(f"  [{svc_tot:>5,d} 回] • {svc_clean}")
             sorted_methods = sorted(methods.items(), key=lambda x: x[1], reverse=True)
             for m, cnt in sorted_methods[:5]:
-                print(f"      └ {m}: {cnt:,} 回")
+                m_clean = urllib.parse.unquote(m)
+                print(f"  [{cnt:>5,d} 回]    └ {m_clean}")
             if len(sorted_methods) > 5:
                 sub_other = sum(c for _, c in sorted_methods[5:])
-                print(f"      └ (その他 {len(sorted_methods)-5} 種類の操作): 計 {sub_other:,} 回")
+                print(f"  [{sub_other:>5,d} 回]    └ (その他 {len(sorted_methods)-5} 種類の操作)")
     elif token and raw_log_count == 0:
         print(f"  ℹ️ ログ検索完了: 過去24時間以内に検出されたログは 0 件です。")
         print("     ※ データアクセス監査ログ (IAM ➔ 監査ログ) が有効化されているかご確認ください。")
