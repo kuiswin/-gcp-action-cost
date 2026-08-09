@@ -331,12 +331,12 @@ def main():
     raw_service_counts = {}
 
     if token:
-        try:
-            filter_str = f'timestamp >= "{t_24h.strftime("%Y-%m-%dT%H:%M:%SZ")}"'
-            page_token = None
-            page_count = 0
-            all_entries = []
+        filter_str = f'timestamp >= "{t_24h.strftime("%Y-%m-%dT%H:%M:%SZ")}"'
+        page_token = None
+        page_count = 0
+        all_entries = []
 
+        try:
             while True:
                 req_payload = {
                     "resourceNames": [f"projects/{project_id}"],
@@ -466,8 +466,6 @@ def main():
                     sec = max(0.0, (end_t - start_t).total_seconds())
                     uptime_hours = (sec / 3600.0) * rcfg["mult"]
                     counts_24h[rkey] = uptime_hours
-        except Exception:
-            pass
 
     # Snapshot / Delta handling
     is_delta = False
