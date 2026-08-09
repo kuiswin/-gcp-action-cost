@@ -590,8 +590,25 @@ def main():
     print(f"🏆 【Step 2: GCP Action Cost 精密原価プロファイル{mode_title}】 (プロジェクト: {project_id})")
     print("=" * line_w)
 
-    def format_cell(cost, qty):
-        q_str = f"{fmt_qty(qty):>5}"
+    def format_cell(cost, qty, unit_name="", is_deployed=False):
+        if is_deployed:
+            if qty == 0:
+                q_str = " 0.0時間"
+            else:
+                q_str = f"{qty:4.1f}時間"
+        else:
+            if "枚" in unit_name:
+                q_str = f"{int(qty):>4d}枚"
+            elif "回" in unit_name:
+                q_str = f"{int(qty):>4d}回"
+            elif "トークン" in unit_name:
+                q_str = f"{qty:>4.1f}k"
+            elif "秒" in unit_name:
+                q_str = f"{qty:>4.1f}秒"
+            elif "時間" in unit_name:
+                q_str = f"{qty:>4.1f}時間"
+            else:
+                q_str = f"{fmt_qty(qty):>5}"
         return f"￥{cost:9.4f} ({q_str})"
 
     # 1. Print Deployed / Provisioned Section
@@ -602,10 +619,16 @@ def main():
     print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
     print("-" * line_w)
     for item in deployed_items:
-        col_5m  = format_cell(item['c_5m'],  item['q_5m'])
-        col_30m = format_cell(item['c_30m'], item['q_30m'])
-        col_1h  = format_cell(item['c_1h'],  item['q_1h'])
-        col_24h = format_cell(item['c_24h'], item['q_24h'])
+        # Show actual instance uptime hours for AlloyDB (dividing by vCPU multiplier 4.0 if alloydb)
+        display_q_5m  = item['q_5m']  / 4.0 if item['key'] == 'alloydb_cpu_hours' else item['q_5m']
+        display_q_30m = item['q_30m'] / 4.0 if item['key'] == 'alloydb_cpu_hours' else item['q_30m']
+        display_q_1h  = item['q_1h']  / 4.0 if item['key'] == 'alloydb_cpu_hours' else item['q_1h']
+        display_q_24h = item['q_24h'] / 4.0 if item['key'] == 'alloydb_cpu_hours' else item['q_24h']
+
+        col_5m  = format_cell(item['c_5m'],  display_q_5m,  item['unit'], is_deployed=True)
+        col_30m = format_cell(item['c_30m'], display_q_30m, item['unit'], is_deployed=True)
+        col_1h  = format_cell(item['c_1h'],  display_q_1h,  item['unit'], is_deployed=True)
+        col_24h = format_cell(item['c_24h'], display_q_24h, item['unit'], is_deployed=True)
         print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 26)} │ {ljust_jp(item['label'], 35)}")
     print("-" * line_w)
     print()
@@ -615,10 +638,10 @@ def main():
     print(f"  {ljust_jp('【直近 05分間】', 20)} │ {ljust_jp('【直近 30分間】', 20)} │ {ljust_jp('【直近 01時間】', 20)} │ {ljust_jp('【直近 24時間/差分】', 20)} │ {ljust_jp('単位', 11)} │ {ljust_jp('区分', 26)} │ {ljust_jp('サービス・リソース名', 35)}")
     print("-" * line_w)
     for item in serverless_items:
-        col_5m  = format_cell(item['c_5m'],  item['q_5m'])
-        col_30m = format_cell(item['c_30m'], item['q_30m'])
-        col_1h  = format_cell(item['c_1h'],  item['q_1h'])
-        col_24h = format_cell(item['c_24h'], item['q_24h'])
+        col_5m  = format_cell(item['c_5m'],  item['q_5m'],  item['unit'], is_deployed=False)
+        col_30m = format_cell(item['c_30m'], item['q_30m'], item['unit'], is_deployed=False)
+        col_1h  = format_cell(item['c_1h'],  item['q_1h'],  item['unit'], is_deployed=False)
+        col_24h = format_cell(item['c_24h'], item['q_24h'], item['unit'], is_deployed=False)
         print(f"  {ljust_jp(col_5m, 20)} │ {ljust_jp(col_30m, 20)} │ {ljust_jp(col_1h, 20)} │ {ljust_jp(col_24h, 20)} │ {ljust_jp(item['unit'], 11)} │ {ljust_jp(item['category'], 26)} │ {ljust_jp(item['label'], 35)}")
 
     print("-" * line_w)
