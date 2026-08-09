@@ -118,13 +118,23 @@ def parse_iso_time(ts_str):
         return None
 
 def get_disp_width(text):
-    clean_text = str(text).replace('\ufe0f', '').replace('\ufe0e', '')
     w = 0
-    for c in clean_text:
-        if ord(c) in (0x2601, 0x26a1, 0x1f4be, 0x1f3a1, 0x1f4e3, 0x1f4e6, 0x1f4b0, 0x1f3c6, 0x1f6a8, 0x274c, 0x1f53b) or unicodedata.east_asian_width(c) in ('F', 'W', 'A'):
+    i = 0
+    text_str = str(text)
+    while i < len(text_str):
+        c = text_str[i]
+        if ord(c) in (0xfe0f, 0xfe0e):
+            i += 1
+            continue
+        if ord(c) >= 0x1f300:
+            w += 2
+        elif ord(c) in (0x2601, 0x26a1):
+            w += 1
+        elif unicodedata.east_asian_width(c) in ('F', 'W'):
             w += 2
         else:
             w += 1
+        i += 1
     return w
 
 def ljust_jp(text, width):
@@ -182,15 +192,15 @@ def main():
     # Dynamically build pricing_map from free_tier.json
     pricing_map = {}
     cat_map = {
-        "cloud_run": "☁️ アプリ実行",
-        "cloud_storage": "💾 ストレージ",
-        "gemini_api": "🎨 AI生成",
-        "cloud_spanner": "⚡ 定常プロビジョニング",
-        "cloud_bigtable": "⚡ 定常プロビジョニング",
-        "alloydb": "⚡ 定常プロビジョニング",
-        "pubsub": "📦 インフラ・ログ",
-        "secret_manager": "📦 インフラ・ログ",
-        "artifact_registry": "📦 インフラ・ログ"
+        "cloud_run": "☁️  アプリ実行",
+        "cloud_storage": "💾  ストレージ",
+        "gemini_api": "🎨  AI生成",
+        "cloud_spanner": "⚡  常時プロビジョニング",
+        "cloud_bigtable": "⚡  常時プロビジョニング",
+        "alloydb": "⚡  常時プロビジョニング",
+        "pubsub": "📦  インフラ・ログ",
+        "secret_manager": "📦  インフラ・ログ",
+        "artifact_registry": "📦  インフラ・ログ"
     }
 
     for svc_name, svc_info in free_tier_cfg.items():
