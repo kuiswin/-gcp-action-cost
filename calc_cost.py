@@ -125,24 +125,72 @@ def main():
     project_id = args.project or get_project_id()
     token = get_access_token()
 
-    # Load configuration tables
+    # Load configuration tables dynamically from JSON files
     free_tier_cfg = load_json_config("free_tier.json", {}).get("free_tier", {})
-    
-    # Unit prices mapping (JPY)
-    pricing_map = {
-        "cloud_run_cpu_seconds": {"label": "Cloud Run CPU", "cat": "☁️ アプリ実行", "unit": "vCPU秒", "price_jpy": 0.0000372, "limit": 180000.0, "limit_disp": "180,000 vCPU秒/月"},
-        "cloud_run_requests":    {"label": "Cloud Run Request", "cat": "☁️ アプリ実行", "unit": "回", "price_jpy": 0.000000062, "limit": 2000000.0, "limit_disp": "2,000,000 回/月"},
-        "gcs_read_ops":          {"label": "Cloud Storage Read", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0000062, "limit": 50000.0, "limit_disp": "50,000 回/月"},
-        "gcs_write_ops":         {"label": "Cloud Storage Write", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0007744, "limit": 0.0, "limit_disp": "従量制"},
-        "image_gen_count":       {"label": "Gemini API (AI画像生成)", "cat": "🎨 AI生成", "unit": "枚", "price_jpy": 6.0000, "limit": 0.0, "limit_disp": "従量制"},
-        "text_input_tokens":     {"label": "Gemini API (テキスト入力)", "cat": "🎨 AI生成", "unit": "1kトークン", "price_jpy": 0.02325, "limit": 0.0, "limit_disp": "従量制"},
-        "spanner_node_hours":    {"label": "Cloud Spanner Node", "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間", "price_jpy": 232.5000, "limit": 0.0, "limit_disp": "従量制"},
-        "bigtable_node_hours":   {"label": "Cloud Bigtable Node", "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間", "price_jpy": 124.0000, "limit": 0.0, "limit_disp": "従量制"},
-        "alloydb_cpu_hours":     {"label": "AlloyDB Cluster (4 vCPU)", "cat": "⚡ 定常プロビジョニング", "unit": "vCPU時間", "price_jpy": 31.0000, "limit": 0.0, "limit_disp": "従量制"},
-        "pubsub_publish_ops":    {"label": "Pub/Sub Push通信回数", "cat": "📦 インフラ・ログ", "unit": "回", "price_jpy": 0.00001, "limit": 0.0, "limit_disp": "従量制"},
-        "secret_access_ops":     {"label": "Secret Manager アクセス", "cat": "📦 インフラ・ログ", "unit": "回", "price_jpy": 0.0000093, "limit": 0.0, "limit_disp": "従量制"},
-        "artifact_registry_ops": {"label": "Artifact Registry ストレージ", "cat": "📦 インフラ・ログ", "unit": "GB", "price_jpy": 0.015, "limit": 0.5, "limit_disp": "0.5 GB/月"},
+    service_rules = load_json_config("service_rules.json", {}).get("metrics_map", {})
+
+    # Default prices dictionary (JPY) used if free_tier.json is missing keys
+    default_prices = {
+        "cpu_per_vcpu_sec_jpy": 0.0000372,
+        "request_per_count_jpy": 0.000000062,
+        "class_b_read_per_op_jpy": 0.0000062,
+        "class_a_write_per_op_jpy": 0.0007744,
+        "image_generation_per_image_jpy": 6.0000,
+        "input_text_per_1k_tokens_jpy": 0.02325,
+        "node_per_hour_st_jpy": 232.5000,
+        "node_per_hour_jpy": 124.0000,
+        "vcpu_per_hour_jpy": 31.0000,
+        "pubsub_push_per_op_jpy": 0.00001,
+        "secret_access_per_op_jpy": 0.0000093,
+        "artifact_storage_per_gb_jpy": 0.015
     }
+
+    # Dynamically build pricing_map from free_tier.json
+    pricing_map = {}
+    cat_map = {
+        "cloud_run": "☁️ アプリ実行",
+        "cloud_storage": "💾 ストレージ",
+        "gemini_api": "🎨 AI生成",
+        "cloud_spanner": "⚡ 定常プロビジョニング",
+        "cloud_bigtable": "⚡ 定常プロビジョニング",
+        "alloydb": "⚡ 定常プロビジョニング",
+        "pubsub": "📦 インフラ・ログ",
+        "secret_manager": "📦 インフラ・ログ",
+        "artifact_registry": "📦 インフラ・ログ"
+    }
+
+    for svc_name, svc_info in free_tier_cfg.items():
+        cat = cat_map.get(svc_name, "📦 インフラ・ログ")
+        metrics = svc_info.get("metrics", {})
+        for mkey, mdata in metrics.items():
+            price_key = mdata.get("price_key")
+            price = default_prices.get(price_key, 0.0)
+            if "editions" in mdata and not price_key:
+                for ed in mdata["editions"]:
+                    if ed.get("is_default"):
+                        price = default_prices.get(ed.get("price_key"), 0.0)
+            pricing_map[mkey] = {
+                "label": mdata.get("label", mkey),
+                "cat": cat,
+                "unit": mdata.get("unit", "回"),
+                "price_jpy": price,
+                "limit": mdata.get("free_limit", 0.0),
+                "limit_disp": mdata.get("free_limit_display", "従量制")
+            }
+
+    # Fallback to ensure all metrics exist
+    if not pricing_map:
+        pricing_map = {
+            "cloud_run_cpu_seconds": {"label": "Cloud Run CPU", "cat": "☁️ アプリ実行", "unit": "vCPU秒", "price_jpy": 0.0000372, "limit": 180000.0, "limit_disp": "180,000 vCPU秒/月"},
+            "cloud_run_requests":    {"label": "Cloud Run Request", "cat": "☁️ アプリ実行", "unit": "回", "price_jpy": 0.000000062, "limit": 2000000.0, "limit_disp": "2,000,000 回/月"},
+            "gcs_read_ops":          {"label": "Cloud Storage Read", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0000062, "limit": 50000.0, "limit_disp": "50,000 回/月"},
+            "gcs_write_ops":         {"label": "Cloud Storage Write", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0007744, "limit": 0.0, "limit_disp": "従量制"},
+            "image_gen_count":       {"label": "Gemini API (AI画像生成)", "cat": "🎨 AI生成", "unit": "枚", "price_jpy": 6.0000, "limit": 0.0, "limit_disp": "従量制"},
+            "text_input_tokens":     {"label": "Gemini API (テキスト入力)", "cat": "🎨 AI生成", "unit": "1kトークン", "price_jpy": 0.02325, "limit": 0.0, "limit_disp": "従量制"},
+            "spanner_node_hours":    {"label": "Cloud Spanner Node", "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間", "price_jpy": 232.5000, "limit": 0.0, "limit_disp": "従量制"},
+            "bigtable_node_hours":   {"label": "Cloud Bigtable Node", "cat": "⚡ 定常プロビジョニング", "unit": "ノード時間", "price_jpy": 124.0000, "limit": 0.0, "limit_disp": "従量制"},
+            "alloydb_cpu_hours":     {"label": "AlloyDB Cluster (4 vCPU)", "cat": "⚡ 定常プロビジョニング", "unit": "vCPU時間", "price_jpy": 31.0000, "limit": 0.0, "limit_disp": "従量制"}
+        }
 
     now_utc = datetime.now(timezone.utc)
     t_5m  = now_utc - timedelta(minutes=5)
