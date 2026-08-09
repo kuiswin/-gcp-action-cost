@@ -259,14 +259,14 @@ def main():
     pricing_map = {}
     cat_map = {
         "cloud_run": "☁️  アプリ実行",
-        "cloud_storage": "💾  ストレージ",
-        "gemini_api": "🎨  AI生成",
-        "cloud_spanner": "⚡  常時プロビジョニング",
-        "cloud_bigtable": "⚡  常時プロビジョニング",
-        "alloydb": "⚡  常時プロビジョニング",
-        "pubsub": "📦  インフラ・ログ",
-        "secret_manager": "📦  インフラ・ログ",
-        "artifact_registry": "📦  インフラ・ログ"
+        "cloud_storage": "💾 ストレージ",
+        "gemini_api": "🎨 AI生成",
+        "cloud_spanner": "⚡  デプロイ/常時稼働",
+        "cloud_bigtable": "⚡  デプロイ/常時稼働",
+        "alloydb": "⚡  デプロイ/常時稼働",
+        "pubsub": "📦 インフラ・ログ",
+        "secret_manager": "📦 インフラ・ログ",
+        "artifact_registry": "📦 インフラ・ログ"
     }
 
     for svc_name, svc_info in free_tier_cfg.items():
