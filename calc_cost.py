@@ -330,44 +330,53 @@ def main():
     raw_log_count = 0
     raw_service_counts = {}
 
-    if token:
+    if True:
         filter_str = f'timestamp >= "{t_24h.strftime("%Y-%m-%dT%H:%M:%SZ")}"'
-        page_token = None
-        page_count = 0
         all_entries = []
 
         try:
-            while True:
-                req_payload = {
-                    "resourceNames": [f"projects/{project_id}"],
-                    "filter": filter_str,
-                    "pageSize": 1000,
-                }
-                if page_token:
-                    req_payload["pageToken"] = page_token
-
-                req_data = json.dumps(req_payload).encode("utf-8")
-                req = urllib.request.Request(
-                    "https://logging.googleapis.com/v2/entries:list",
-                    data=req_data,
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
-                )
-
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    raw_bytes = resp.read()
-                    if resp.info().get("Content-Encoding") == "gzip":
-                        raw_bytes = gzip.decompress(raw_bytes)
-                    
-                    data = json.loads(raw_bytes.decode("utf-8"))
-                    entries = data.get("entries", [])
-                    all_entries.extend(entries)
-                    page_token = data.get("nextPageToken")
-                    page_count += 1
-
-                    if not page_token or page_count >= 100:
-                        break
+            cmd = ["gcloud", "logging", "read", filter_str, "--project", project_id, "--format", "json", "--limit", "3000"]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if res.returncode == 0 and res.stdout.strip():
+                all_entries = json.loads(res.stdout)
         except Exception:
             pass
+
+        page_token = None
+        page_count = 0
+        if not all_entries and token:
+            try:
+                while True:
+                    req_payload = {
+                        "resourceNames": [f"projects/{project_id}"],
+                        "filter": filter_str,
+                        "pageSize": 1000,
+                    }
+                    if page_token:
+                        req_payload["pageToken"] = page_token
+
+                    req_data = json.dumps(req_payload).encode("utf-8")
+                    req = urllib.request.Request(
+                        "https://logging.googleapis.com/v2/entries:list",
+                        data=req_data,
+                        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept-Encoding": "gzip"}
+                    )
+
+                    with urllib.request.urlopen(req, timeout=30) as resp:
+                        raw_bytes = resp.read()
+                        if resp.info().get("Content-Encoding") == "gzip":
+                            raw_bytes = gzip.decompress(raw_bytes)
+                        
+                        data = json.loads(raw_bytes.decode("utf-8"))
+                        entries = data.get("entries", [])
+                        all_entries.extend(entries)
+                        page_token = data.get("nextPageToken")
+                        page_count += 1
+
+                        if not page_token or page_count >= 100:
+                            break
+            except Exception:
+                pass
 
         # Fallback to local raw log cache if API request failed or returned empty
         if not all_entries and os.path.exists(raw_log_file):
