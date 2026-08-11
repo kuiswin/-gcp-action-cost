@@ -469,12 +469,21 @@ def main():
                 creates = sorted([t for t in evs["creates"] if t])
                 deletes = sorted([t for t in evs["deletes"] if t])
 
-                if creates:
-                    start_t = creates[0]
+                if creates or (rkey == "spanner_node_hours" and not deletes):
+                    start_t = creates[0] if creates else t_24h
                     end_t = deletes[-1] if (deletes and deletes[-1] > start_t) else now_utc
-                    sec = max(0.0, (end_t - start_t).total_seconds())
-                    uptime_hours = (sec / 3600.0) * rcfg["mult"]
-                    counts_24h[rkey] = uptime_hours
+
+                    def calc_overlap_hours(window_start):
+                        s = max(start_t, window_start)
+                        e = min(end_t, now_utc)
+                        if e > s:
+                            return ((e - s).total_seconds() / 3600.0) * rcfg["mult"]
+                        return 0.0
+
+                    counts_5m[rkey] = calc_overlap_hours(t_5m)
+                    counts_30m[rkey] = calc_overlap_hours(t_30m)
+                    counts_1h[rkey] = calc_overlap_hours(t_1h)
+                    counts_24h[rkey] = calc_overlap_hours(t_24h)
 
     # Snapshot / Delta handling
     is_delta = False
