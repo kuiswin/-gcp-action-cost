@@ -469,8 +469,8 @@ def main():
                 creates = sorted([t for t in evs["creates"] if t])
                 deletes = sorted([t for t in evs["deletes"] if t])
 
-                if creates or (rkey == "spanner_node_hours" and not deletes):
-                    start_t = creates[0] if creates else t_24h
+                if creates:
+                    start_t = creates[0]
                     end_t = deletes[-1] if (deletes and deletes[-1] > start_t) else now_utc
 
                     def calc_overlap_hours(window_start):
@@ -484,6 +484,30 @@ def main():
                     counts_30m[rkey] = calc_overlap_hours(t_30m)
                     counts_1h[rkey] = calc_overlap_hours(t_1h)
                     counts_24h[rkey] = calc_overlap_hours(t_24h)
+
+            # Direct Live Provisioned Resource Discovery Fallback (Spanner / Bigtable / AlloyDB)
+            try:
+                if counts_24h.get("spanner_node_hours", 0.0) == 0.0:
+                    cmd_sp = [get_gcloud_cmd(), "spanner", "instances", "list", "--project", project_id, "--format", "json", "--quiet"]
+                    res_sp = subprocess.run(cmd_sp, capture_output=True, text=True, timeout=10)
+                    if res_sp.returncode == 0 and res_sp.stdout.strip():
+                        sp_insts = json.loads(res_sp.stdout)
+                        for inst in sp_insts:
+                            if inst.get("state") == "READY":
+                                c_str = inst.get("createTime")
+                                c_dt = parse_iso_time(c_str) if c_str else t_24h
+                                pus = float(inst.get("processingUnits", 1000))
+                                mult = pus / 1000.0
+                                def calc_sp_overlap(w_start):
+                                    s = max(c_dt, w_start) if c_dt else w_start
+                                    e = now_utc
+                                    return ((e - s).total_seconds() / 3600.0) * mult if e > s else 0.0
+                                counts_5m["spanner_node_hours"] += calc_sp_overlap(t_5m)
+                                counts_30m["spanner_node_hours"] += calc_sp_overlap(t_30m)
+                                counts_1h["spanner_node_hours"] += calc_sp_overlap(t_1h)
+                                counts_24h["spanner_node_hours"] += calc_sp_overlap(t_24h)
+            except Exception:
+                pass
 
     # Snapshot / Delta handling
     is_delta = False
