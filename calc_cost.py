@@ -291,8 +291,8 @@ def main():
     # Fallback to ensure all metrics exist
     if not pricing_map:
         pricing_map = {
-            "cloud_run_cpu_seconds": {"label": "Cloud Run CPU", "cat": "☁️ アプリ実行", "unit": "vCPU秒", "price_jpy": 0.0000372, "limit": 180000.0, "limit_disp": "180,000 vCPU秒/月"},
-            "cloud_run_requests":    {"label": "Cloud Run Request", "cat": "☁️ アプリ実行", "unit": "回", "price_jpy": 0.000000062, "limit": 2000000.0, "limit_disp": "2,000,000 回/月"},
+            "cpu_seconds": {"label": "Cloud Run CPU", "cat": "☁️ アプリ実行", "unit": "vCPU秒", "price_jpy": 0.0000372, "limit": 180000.0, "limit_disp": "180,000 vCPU秒/月"},
+            "request_count":    {"label": "Cloud Run Request", "cat": "☁️ アプリ実行", "unit": "回", "price_jpy": 0.000000062, "limit": 2000000.0, "limit_disp": "2,000,000 回/月"},
             "gcs_read_ops":          {"label": "Cloud Storage Read", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0000062, "limit": 50000.0, "limit_disp": "50,000 回/月"},
             "gcs_write_ops":         {"label": "Cloud Storage Write", "cat": "💾 ストレージ", "unit": "回", "price_jpy": 0.0007744, "limit": 0.0, "limit_disp": "従量制"},
             "image_gen_count":       {"label": "Gemini API (AI画像生成)", "cat": "🎨 AI生成", "unit": "枚", "price_jpy": 6.0000, "limit": 0.0, "limit_disp": "従量制"},
@@ -448,9 +448,9 @@ def main():
                     elif svc == "secretmanager.googleapis.com":
                         if "accesssecretversion" in method:
                             add_metric("secret_access_ops", 1.0)
-                    elif svc == "run.googleapis.com":
-                        add_metric("cloud_run_requests", 1.0)
-                        add_metric("cloud_run_cpu_seconds", 0.2)
+                    elif "run.googleapis.com" in svc or "cloud_run" in svc or entry.get("httpRequest"):
+                        add_metric("request_count", 1.0)
+                        add_metric("cpu_seconds", 0.2)
                 except Exception:
                     continue
 
