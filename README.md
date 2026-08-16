@@ -12,7 +12,7 @@ GCPの1円未満の微小コストや無料枠（Always Free）の消化率を�
 以下のコマンドをターミナルで実行するだけで、全サービスの無料枠消化率と概算コストが即座に表示されます：
 
 ```bash
-python3 <(curl -s https://raw.githubusercontent.com/kuiswin/gcp-action-cost/main/calc_cost.py)
+python3 <(curl -s https://raw.githubusercontent.com/kuiswin/-gcp-action-cost/main/calc_cost.py)
 ```
 
 ---
