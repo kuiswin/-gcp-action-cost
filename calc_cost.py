@@ -442,9 +442,11 @@ def main():
                             counts_5m[key] += delta
 
                     if svc == "aiplatform.googleapis.com":
-                        if "predict" in method and "endpoint" not in method:
+                        proto_str = (str(proto) + " " + str(json_p)).lower()
+                        if ("imagen" in proto_str or "imagegeneration" in proto_str or "image" in proto_str) and "embed" not in proto_str:
                             add_metric("image_gen_count", 1.0)
-                        elif "generatecontent" in method:
+                        else:
+                            # Vertex AI text embeddings (text-embedding / text-multilingual-embedding) or Gemini text generation
                             add_metric("text_input_tokens", 0.5)
                     elif svc == "storage.googleapis.com":
                         if "storage.objects.create" in method:
